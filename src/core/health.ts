@@ -24,7 +24,7 @@ export async function healthCommand(): Promise<void> {
   const state = await stateAdapter.read()
 
   if (!state) {
-    console.log(chalk.yellow('⚠ No hay datos de estado. Ejecutá: wodlie status'))
+    console.log(chalk.yellow('⚠ No hay datos de estado. Ejecutá: wodlie-engine status'))
     return
   }
 

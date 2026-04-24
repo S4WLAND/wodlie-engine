@@ -398,7 +398,7 @@ export async function runInteractiveShell(): Promise<void> {
       {
         type: 'input',
         name: 'rawCommand',
-        message: 'wodlie',
+        message: 'wodlie-engine',
         prefix: '',
       },
     ])

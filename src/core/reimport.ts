@@ -22,7 +22,7 @@ export async function reimportCommand(options: ReimportOptions): Promise<void> {
       console.log(chalk.dim('  Por ahora, reimport manual:'))
       console.log(chalk.dim('  1. Clonar repo del cliente'))
       console.log(chalk.dim('  2. Restaurar .core/ y .wodlie-config/ desde backup'))
-      console.log(chalk.dim('  3. Ejecutar wodlie status'))
+      console.log(chalk.dim('  3. Ejecutar wodlie-engine status'))
     } catch {
       console.error(chalk.red('✗ No se encontró .wodlie-config/project.json'))
     }
@@ -35,7 +35,7 @@ export async function reimportCommand(options: ReimportOptions): Promise<void> {
   console.log(chalk.dim('  1. Clonar repo del cliente desde ' + options.from))
   console.log(chalk.dim('  2. Comparar con último snapshot de .wodlie-export/'))
   console.log(chalk.dim('  3. Generar conflict-report.md con diferencias'))
-  console.log(chalk.dim('  4. Ejecutar: wodlie reimport --apply'))
+  console.log(chalk.dim('  4. Ejecutar: wodlie-engine reimport --apply'))
   console.log('')
   console.log(chalk.dim('  Esta funcionalidad todavía no está implementada'))
   console.log('')

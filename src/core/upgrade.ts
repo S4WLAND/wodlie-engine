@@ -47,7 +47,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
     console.log(chalk.dim('  Esta funcionalidad todavía no está implementada'))
     console.log(chalk.dim('  Por ahora, actualizar manualmente copiando archivos del template'))
   } else {
-    console.log(chalk.dim('  Para aplicar: wodlie upgrade --apply'))
+    console.log(chalk.dim('  Para aplicar: wodlie-engine upgrade --apply'))
   }
   console.log('')
 }

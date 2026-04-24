@@ -9,7 +9,7 @@ Estados usados:
 
 ## Shell interactiva
 
-### `wodlie`
+### `wodlie-engine`
 
 Estado: `implemented`
 
@@ -20,14 +20,14 @@ Abre una shell interactiva:
 
 ## Inicialización
 
-### `wodlie init <proyecto>`
+### `wodlie-engine init <proyecto>`
 
 Estado: `implemented`
 
 Genera un proyecto nuevo desde el template `node-fastify`, aplica reemplazo de variables e inicializa git.
 
 ```bash
-wodlie init my-project \
+wodlie-engine init my-project \
   --type webapp \        # webapp | platform | enterprise | iot
   --size medium \        # small | medium | large
   --stack node           # node (default) | python | go
@@ -59,14 +59,14 @@ Limitaciones actuales:
 
 ## Entornos
 
-### `wodlie env:sync`
+### `wodlie-engine env:sync`
 
 Estado: `implemented`
 
 Sincroniza claves de `.env.example` a `.env.development` locales en las apps del template.
 
 ```bash
-wodlie env:sync
+wodlie-engine env:sync
 ```
 
 No hace hoy:
@@ -78,83 +78,83 @@ No hace hoy:
 
 ## Negocio canónico
 
-### `wodlie business:epic:create <id> <titulo>`
+### `wodlie-engine business:epic:create <id> <titulo>`
 
 Estado: `implemented`
 
 Crea un épico canónico en `.wodlie-config/business.json` y genera su archivo estándar.
 
 ```bash
-wodlie business:epic:create EP-001 "Onboarding cliente"
+wodlie-engine business:epic:create EP-001 "Onboarding cliente"
 ```
 
-### `wodlie business:story:create <epicId> <id> <titulo>`
+### `wodlie-engine business:story:create <epicId> <id> <titulo>`
 
 Estado: `implemented`
 
 Crea una historia canónica, genera su archivo estándar y sincroniza overview/progress.
 
 ```bash
-wodlie business:story:create EP-001 US-001 "Registrar brief" \
+wodlie-engine business:story:create EP-001 US-001 "Registrar brief" \
   --as operador \
   --want "capturar el brief" \
   --so-that "el proyecto arranque con contexto"
 ```
 
-### `wodlie business:story:status <storyId> <estado>`
+### `wodlie-engine business:story:status <storyId> <estado>`
 
 Estado: `implemented`
 
 Actualiza el estado canónico de una historia.
 
 ```bash
-wodlie business:story:status US-001 en-desarrollo
-wodlie business:story:status US-001 completado
+wodlie-engine business:story:status US-001 en-desarrollo
+wodlie-engine business:story:status US-001 completado
 ```
 
-### `wodlie business:pivot <targetId>`
+### `wodlie-engine business:pivot <targetId>`
 
 Estado: `implemented`
 
 Registra un pivot sobre un épico, una historia o `global`.
 
 ```bash
-wodlie business:pivot EP-001 --reason "cliente cambió la dirección del producto"
-wodlie business:pivot global --reason "se redefine el alcance comercial"
+wodlie-engine business:pivot EP-001 --reason "cliente cambió la dirección del producto"
+wodlie-engine business:pivot global --reason "se redefine el alcance comercial"
 ```
 
-### `wodlie dev:story:complete <storyId>`
+### `wodlie-engine dev:story:complete <storyId>`
 
 Estado: `implemented`
 
 Marca una historia como completada desde DEV y sincroniza negocio, métricas y eventos.
 
 ```bash
-wodlie dev:story:complete US-001
+wodlie-engine dev:story:complete US-001
 ```
 
-### `wodlie business:sync`
+### `wodlie-engine business:sync`
 
 Estado: `implemented`
 
 Reconstruye `overview.md`, `progress.*` y demás artefactos derivados desde `business.json`.
 
 ```bash
-wodlie business:sync
+wodlie-engine business:sync
 ```
 
 ---
 
 ## Estado y métricas
 
-### `wodlie status`
+### `wodlie-engine status`
 
 Estado: `implemented`
 
 Actualiza el estado completo del proyecto.
 
 ```bash
-wodlie status
+wodlie-engine status
 ```
 
 **Genera/actualiza:**
@@ -167,14 +167,14 @@ No hace hoy:
 - consolidación real de changelog desde git
 - derivación fuerte desde infra/dev, salvo triggers manuales y comandos estructurados
 
-### `wodlie health`
+### `wodlie-engine health`
 
 Estado: `implemented`
 
 Muestra la salud del proyecto en consola de forma visual.
 
 ```bash
-wodlie health
+wodlie-engine health
 ```
 
 **Muestra:**
@@ -187,28 +187,28 @@ wodlie health
 
 ## Reportes
 
-### `wodlie report:draft`
+### `wodlie-engine report:draft`
 
 Estado: `implemented`
 
 Genera borrador del reporte semanal interno.
 
 ```bash
-wodlie report:draft
+wodlie-engine report:draft
 ```
 
 - Lee historias y eventos canónicos
 - Genera un borrador Markdown con secciones narrativas vacías
 - El operador o la IA completan la parte libre
 
-### `wodlie report`
+### `wodlie-engine report`
 
 Estado: `implemented`
 
 Genera el reporte `.tex` para el cliente.
 
 ```bash
-wodlie report
+wodlie-engine report
 ```
 
 - Genera el `.tex` base
@@ -219,17 +219,17 @@ wodlie report
 
 ## Triggers
 
-### `wodlie trigger <nombre>`
+### `wodlie-engine trigger <nombre>`
 
 Estado: `implemented`
 
 Disparo manual de un trigger.
 
 ```bash
-wodlie trigger on-deploy --project my-project
-wodlie trigger on-incident "caída de API 14:30hs"
-wodlie trigger on-milestone --story US-003
-wodlie trigger on-pivot --epic EP-001
+wodlie-engine trigger on-deploy --project my-project
+wodlie-engine trigger on-incident "caída de API 14:30hs"
+wodlie-engine trigger on-milestone --story US-003
+wodlie-engine trigger on-pivot --epic EP-001
 ```
 
 **Triggers disponibles:**
@@ -245,16 +245,16 @@ Observación:
 
 ## Deploy
 
-### `wodlie deploy`
+### `wodlie-engine deploy`
 
 Estado: `guided`
 
 Muestra el flujo manual recomendado para deploy.
 
 ```bash
-wodlie deploy --env staging --target all
-wodlie deploy --env production --target api
-wodlie deploy --env staging --target front --skip e2e
+wodlie-engine deploy --env staging --target all
+wodlie-engine deploy --env production --target api
+wodlie-engine deploy --env staging --target front --skip e2e
 ```
 
 **Flags:**
@@ -267,28 +267,28 @@ No hace hoy:
 - ejecución remota
 - integración CI/CD real
 
-### `wodlie ssh:verify`
+### `wodlie-engine ssh:verify`
 
 Estado: `implemented`
 
 Verifica conexión SSH con el VPS.
 
 ```bash
-wodlie ssh:verify
+wodlie-engine ssh:verify
 ```
 
 ---
 
 ## Ciclo de vida del proyecto
 
-### `wodlie export`
+### `wodlie-engine export`
 
 Estado: `implemented`
 
 Genera `.wodlie-export/` con el historial completo del proyecto.
 
 ```bash
-wodlie export
+wodlie-engine export
 ```
 
 **Genera:**
@@ -302,14 +302,14 @@ wodlie export
 └── delivery/delivery-report.md
 ```
 
-### `wodlie purge`
+### `wodlie-engine purge`
 
 Estado: `implemented`
 
 Elimina el engine del proyecto. **Hace snapshot git automático antes.**
 
 ```bash
-wodlie purge
+wodlie-engine purge
 ```
 
 Implementación real hoy:
@@ -321,26 +321,26 @@ No hace hoy:
 - limpieza selectiva de workflows del engine
 - rollback sofisticado
 
-### `wodlie deliver`
+### `wodlie-engine deliver`
 
 Estado: `guided`
 
 Entrega completa al cliente.
 
 ```bash
-wodlie deliver --target https://github.com/cliente/my-project
+wodlie-engine deliver --target https://github.com/cliente/my-project
 ```
 
 Hoy imprime la secuencia manual recomendada.
 
-### `wodlie reimport`
+### `wodlie-engine reimport`
 
 Estado: `planned`
 
 Reactiva el engine en un proyecto del cliente.
 
 ```bash
-wodlie reimport --from https://github.com/cliente/my-project
+wodlie-engine reimport --from https://github.com/cliente/my-project
 ```
 
 Hoy solo imprime instrucciones manuales.
@@ -349,14 +349,14 @@ Hoy solo imprime instrucciones manuales.
 
 ## Engine
 
-### `wodlie upgrade`
+### `wodlie-engine upgrade`
 
 Estado: `planned`
 
 Informa actualizaciones disponibles del engine.
 
 ```bash
-wodlie upgrade
+wodlie-engine upgrade
 # → versión actual: 1.0.0
 # → versión disponible: 1.2.0
 # → archivos que cambiarían: ...
@@ -369,14 +369,14 @@ Hoy no aplica cambios reales.
 
 ## Módulos
 
-### `wodlie module:add <nombre>`
+### `wodlie-engine module:add <nombre>`
 
 Estado: `guided`
 
 Copia el módulo desde otro proyecto al path esperado del backend.
 
 ```bash
-wodlie module:add turnos --from ../my-project
+wodlie-engine module:add turnos --from ../my-project
 ```
 
 No hace hoy:
@@ -385,14 +385,14 @@ No hace hoy:
 - registro automático en `app.ts`
 - commit automático
 
-### `wodlie module:remove <nombre>`
+### `wodlie-engine module:remove <nombre>`
 
 Estado: `guided`
 
 Muestra los pasos manuales para eliminar un módulo.
 
 ```bash
-wodlie module:remove turnos
+wodlie-engine module:remove turnos
 ```
 
 No hace hoy:
@@ -404,14 +404,14 @@ No hace hoy:
 
 ## Reconciliación
 
-### `wodlie reconcile`
+### `wodlie-engine reconcile`
 
 Estado: `implemented`
 
 Reconstruye artefactos derivados desde el modelo canónico actual.
 
 ```bash
-wodlie reconcile
+wodlie-engine reconcile
 ```
 
 Hoy equivale a una sincronización conservadora de negocio y métricas.

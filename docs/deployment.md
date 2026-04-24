@@ -3,7 +3,7 @@
 El engine no despliega automáticamente hoy.
 Los comandos de deploy y ssh son utilidades guiadas.
 
-## `wodlie deploy`
+## `wodlie-engine deploy`
 
 Qué hace hoy:
 - valida que estás en un proyecto Wodlie
@@ -17,7 +17,7 @@ Qué no hace:
 - desplegar contenedores
 - verificar healthchecks por sí mismo
 
-## `wodlie ssh:verify`
+## `wodlie-engine ssh:verify`
 
 Qué hace hoy:
 - lee `SSH_HOST` y `SSH_USER` desde `.env.development`

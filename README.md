@@ -44,7 +44,7 @@ npm run test:run
 ### Usar la shell interactiva
 
 ```bash
-wodlie
+wodlie-engine
 ```
 
 La shell abre una paleta de acciones en terminal:
@@ -58,24 +58,24 @@ La shell abre una paleta de acciones en terminal:
 
 ```bash
 # Abrir shell interactiva
-wodlie
+wodlie-engine
 
 # O crear nuevo proyecto en modo directo
 npm run dev -- init mi-proyecto
 
 # Ver estado del proyecto
 cd mi-proyecto
-wodlie status
+wodlie-engine status
 
 # Crear épico e historia canónicos
-wodlie business:epic:create EP-001 "Onboarding"
-wodlie business:story:create EP-001 US-001 "Registrar brief" --as operador --want "capturar el brief" --so-that "arrancar con contexto"
+wodlie-engine business:epic:create EP-001 "Onboarding"
+wodlie-engine business:story:create EP-001 US-001 "Registrar brief" --as operador --want "capturar el brief" --so-that "arrancar con contexto"
 
 # Marcar avance desde DEV
-wodlie dev:story:complete US-001
+wodlie-engine dev:story:complete US-001
 
 # Generar borrador de reporte semanal
-wodlie report:draft
+wodlie-engine report:draft
 ```
 
 ---

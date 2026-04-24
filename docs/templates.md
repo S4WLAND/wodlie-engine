@@ -13,10 +13,10 @@
 |---|---|---|
 | node-fastify | Node.js + Fastify + Next.js + PostgreSQL + Drizzle | implementado |
 
-## Cómo funciona `wodlie init`
+## Cómo funciona `wodlie-engine init`
 
 ```
-wodlie init my-project --type webapp --size medium --stack node
+wodlie-engine init my-project --type webapp --size medium --stack node
     ↓
 1. Copia dist/templates/node-fastify/ → my-project/
 2. Reemplaza variables en archivos:

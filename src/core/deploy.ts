@@ -42,6 +42,6 @@ export async function deployCommand(options: DeployOptions): Promise<void> {
   console.log(chalk.dim(`  1. git push origin ${options.env === 'production' ? 'main' : 'dev'}`))
   console.log(chalk.dim('  2. Monitorear el workflow en CI/CD'))
   console.log(chalk.dim('  3. Verificar healthcheck: curl https://api.<dominio>/health'))
-  console.log(chalk.dim('  4. Ejecutar: wodlie trigger on-deploy'))
+  console.log(chalk.dim('  4. Ejecutar: wodlie-engine trigger on-deploy'))
   console.log('')
 }

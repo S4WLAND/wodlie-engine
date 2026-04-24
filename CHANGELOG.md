@@ -24,6 +24,7 @@
 - `build` ahora copia templates a `dist/`
 - `init` ahora pregunta también por `type`, `size`, `stack` e `infra`
 - `init` ahora recorta la generación del template según infraestructura, tamaño, perfil y capabilities seleccionadas
+- el binario y nombre visible de la CLI ahora es `wodlie-engine`
 
 ### Aclarado
 - solo `node-fastify` está implementado

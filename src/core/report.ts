@@ -143,7 +143,7 @@ ${pivotsThisWeek.length > 0
 
   await fs.writeFile(reportPath, content)
   console.log(chalk.green(`✓ Borrador creado: .business/reports/internal/${week}.md`))
-  console.log(chalk.dim('\n  Completar secciones y luego ejecutar: wodlie report\n'))
+  console.log(chalk.dim('\n  Completar secciones y luego ejecutar: wodlie-engine report\n'))
 }
 
 export async function reportCommand(): Promise<void> {
@@ -165,7 +165,7 @@ export async function reportCommand(): Promise<void> {
 
   if (!await fs.pathExists(internalPath)) {
     console.error(chalk.red(`✗ No se encontró el borrador para ${week}`))
-    console.error(chalk.dim('  Ejecutá primero: wodlie report:draft'))
+    console.error(chalk.dim('  Ejecutá primero: wodlie-engine report:draft'))
     process.exit(1)
   }
 

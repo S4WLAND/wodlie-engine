@@ -5,7 +5,7 @@ import { runInteractiveShell } from './shell'
 
 async function main(): Promise<void> {
   const program = new Command()
-  program.name('wodlie').description('Wodlie SDLC Framework').version('1.0.0')
+  program.name('wodlie-engine').description('Wodlie SDLC Framework').version('1.0.0')
 
   program.command('init <proyecto>').description('Crea un proyecto nuevo').option('--type <tipo>', 'webapp|platform|enterprise|iot', 'webapp').option('--size <tamaño>', 'small|medium|large', 'medium').option('--stack <stack>', 'node|python|go', 'node').option('--capabilities <caps>', 'ai,automation,native,realtime,media').option('--infra <infra>', 'vps|hosting|cloud', 'vps').action(async (proyecto, options) => { const { initCommand } = await import('../core/init'); await initCommand(proyecto, options) })
   program.command('status').description('Actualiza state.json + progress.json + changelog.md').action(async () => { const { statusCommand } = await import('../core/status'); await statusCommand() })

@@ -24,7 +24,7 @@ npm link
 ## 2. Abrir la shell del engine
 
 ```bash
-wodlie
+wodlie-engine
 ```
 
 Dentro de la shell:
@@ -34,7 +34,7 @@ Dentro de la shell:
 También puedes seguir usando modo directo:
 
 ```bash
-wodlie init my-project
+wodlie-engine init my-project
 ```
 
 Hoy `init` pregunta de forma interactiva por:
@@ -79,7 +79,7 @@ my-project/
 
 ```bash
 cd my-project
-wodlie
+wodlie-engine
 # luego usar /epic y /story
 ```
 
@@ -88,9 +88,9 @@ wodlie
 ## 4. Sincronizar artefactos y métricas
 
 ```bash
-wodlie business:sync
-wodlie status
-wodlie health
+wodlie-engine business:sync
+wodlie-engine status
+wodlie-engine health
 ```
 
 ---
@@ -98,8 +98,8 @@ wodlie health
 ## 5. Registrar avance desde desarrollo
 
 ```bash
-wodlie dev:story:complete US-001
-wodlie report:draft
+wodlie-engine dev:story:complete US-001
+wodlie-engine report:draft
 ```
 
 ---

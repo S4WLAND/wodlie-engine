@@ -2,9 +2,9 @@
   "name": "@s4wland/wodlie-engine",
   "version": "1.0.0",
   "description": "Wodlie SDLC Framework — CLI para gestión integral de proyectos de software",
-  "main": "dist/index.js",
+  "main": "dist/cli/index.js",
   "bin": {
-    "wodlie": "./dist/cli/index.js"
+    "wodlie-engine": "./dist/cli/index.js"
   },
   "scripts": {
     "build": "tsc && node scripts/copy-assets.mjs",

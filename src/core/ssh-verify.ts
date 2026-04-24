@@ -21,7 +21,7 @@ export async function sshVerifyCommand(): Promise<void> {
 
   if (!await fs.pathExists(envPath)) {
     console.error(chalk.red('✗ No se encontró .env.development'))
-    console.error(chalk.dim('  Ejecutá: wodlie env:sync'))
+    console.error(chalk.dim('  Ejecutá: wodlie-engine env:sync'))
     process.exit(1)
   }
 
