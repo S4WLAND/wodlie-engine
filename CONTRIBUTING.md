@@ -9,6 +9,10 @@ npm run build
 npm run test:run
 ```
 
+## Regla principal
+
+- leer `AGENTS.md` antes de hacer cambios; ahí viven las reglas operativas de desarrollo, documentación, changelog y convención de commits
+
 ## Flujo de trabajo
 
 - usar `npm run dev -- <comando>` para iterar la CLI
@@ -28,3 +32,4 @@ npm run test:run
 - `docs:` documentación
 - `chore:` mantenimiento interno
 - `refactor:` cambios estructurales sin nueva funcionalidad
+- usar preferentemente formato `tipo(scope): resumen`

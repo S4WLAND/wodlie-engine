@@ -41,16 +41,27 @@ npm run build
 npm run test:run
 ```
 
+### Usar la shell interactiva
+
+```bash
+wodlie
+```
+
+La shell abre una paleta de acciones en terminal:
+- escribir `/` muestra el listado de comandos
+- escribir `/init` arranca la creación guiada del proyecto
+- escribir `/story`, `/epic`, `/status` o `/report-draft` ejecuta acciones sin memorizar flags
+
 ---
 
 ## Uso rápido del engine
 
 ```bash
-# Crear nuevo proyecto
-npm run dev -- init mi-proyecto \
-  --type webapp \
-  --size medium \
-  --stack node
+# Abrir shell interactiva
+wodlie
+
+# O crear nuevo proyecto en modo directo
+npm run dev -- init mi-proyecto
 
 # Ver estado del proyecto
 cd mi-proyecto
@@ -86,6 +97,21 @@ wodlie report:draft
 Los artefactos estructurados que impactan estado, métricas o eventos no se escriben a mano.
 La IA o el operador deben usar comandos del engine.
 MCP todavía no está implementado en este repositorio.
+
+## Generación selectiva
+
+Durante `init`, el engine pregunta por:
+- tipo de proyecto
+- tamaño
+- stack
+- infraestructura
+- capabilities
+
+Y luego conserva solo la selección aplicada para:
+- carpeta de infraestructura (`vps`, `hosting` o `cloud`)
+- perfil de `docker-compose` si existe
+- tamaño seleccionado
+- compose de capabilities elegidas
 
 ---
 

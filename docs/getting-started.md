@@ -16,26 +16,44 @@ cd wodlie-engine
 npm install
 npm run build
 npm run test:run
+npm link
 ```
 
 ---
 
-## 2. Generar un proyecto
+## 2. Abrir la shell del engine
 
 ```bash
-npm run dev -- init my-project \
-  --type webapp \
-  --size medium \
-  --stack node
+wodlie
+```
+
+Dentro de la shell:
+- escribir `/` abre la paleta de comandos
+- escribir `/init` arranca la creación guiada
+
+También puedes seguir usando modo directo:
+
+```bash
+wodlie init my-project
 ```
 
 Hoy `init` pregunta de forma interactiva por:
+- tipo de proyecto
+- tamaño
+- stack
+- infraestructura
 - nombre del cliente
 - nombre del operador
 - dominio
 - email de SSL
 - tipo de contrato
 - capabilities
+
+Y recorta el template para dejar solo:
+- la carpeta de infra seleccionada
+- el tamaño seleccionado
+- el perfil correspondiente si existe
+- las capabilities elegidas
 
 ### Estructura generada
 
@@ -61,11 +79,8 @@ my-project/
 
 ```bash
 cd my-project
-wodlie business:epic:create EP-001 "Onboarding"
-wodlie business:story:create EP-001 US-001 "Registrar brief" \
-  --as operador \
-  --want "capturar el brief" \
-  --so-that "arrancar con contexto"
+wodlie
+# luego usar /epic y /story
 ```
 
 ---

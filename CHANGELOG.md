@@ -12,16 +12,23 @@
 - derivación de `overview.md` y `.business/progress.*` desde el modelo canónico
 - borrador semanal alimentado por historias y eventos
 - smoke tests por script contra `dist/`
+- shell interactiva al ejecutar `wodlie` sin argumentos
+- paleta de acciones y slash commands para operar el engine sin memorizar flags
+- prompts guiados para épicos, historias, estados, reportes y utilidades frecuentes
+- `AGENTS.md` en raíz con reglas de desarrollo, documentación y convención de commits
 
 ### Cambiado
 - `status` ahora sincroniza negocio canónico antes de recalcular salud
 - `trigger` ahora registra eventos y usa la lógica de negocio canónica
 - `report:draft` y `report` reflejan mejor el estado real del modelo
 - `build` ahora copia templates a `dist/`
+- `init` ahora pregunta también por `type`, `size`, `stack` e `infra`
+- `init` ahora recorta la generación del template según infraestructura, tamaño, perfil y capabilities seleccionadas
 
 ### Aclarado
 - solo `node-fastify` está implementado
 - `deploy`, `deliver`, `reimport` y `upgrade` siguen siendo flujos guiados o planificados
+- la generación selectiva hoy recorta principalmente `.infra/`; la composición profunda de `.dev/` por perfil/capabilities sigue pendiente
 
 ## [1.0.0] — 2026-04-23
 

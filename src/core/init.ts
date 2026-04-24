@@ -13,6 +13,17 @@ interface InitOptions {
 }
 
 const TEMPLATE_DIR = path.join(__dirname, '../../templates/node-fastify')
+const PROJECT_TYPES = ['webapp', 'platform', 'enterprise', 'iot'] as const
+const PROJECT_SIZES = ['small', 'medium', 'large'] as const
+const PROJECT_STACKS = ['node', 'python', 'go'] as const
+const INFRA_TYPES = ['vps', 'hosting', 'cloud'] as const
+const CAPABILITY_CHOICES = [
+  { name: 'ai — Agente de IA', value: 'ai' },
+  { name: 'automation — Worker de automatización', value: 'automation' },
+  { name: 'native — App móvil (CORS extendido)', value: 'native' },
+  { name: 'realtime — WebSocket / polling', value: 'realtime' },
+  { name: 'media — Worker de archivos', value: 'media' },
+] as const
 
 const VARIABLES: Record<string, string> = {}
 
@@ -43,6 +54,120 @@ async function copyTemplate(srcDir: string, destDir: string): Promise<void> {
       await copyTemplate(srcPath, destPath)
     } else {
       await processFile(srcPath, destPath)
+    }
+  }
+}
+
+function hasExplicitFlag(flag: string): boolean {
+  return process.argv.includes(flag)
+}
+
+async function resolveInitOptions(options: InitOptions): Promise<InitOptions> {
+  const questions = []
+
+  if (!hasExplicitFlag('--type')) {
+    questions.push({
+      type: 'list',
+      name: 'type',
+      message: 'Tipo de proyecto:',
+      choices: [...PROJECT_TYPES],
+      default: options.type,
+    })
+  }
+
+  if (!hasExplicitFlag('--size')) {
+    questions.push({
+      type: 'list',
+      name: 'size',
+      message: 'Tamaño inicial:',
+      choices: [...PROJECT_SIZES],
+      default: options.size,
+    })
+  }
+
+  if (!hasExplicitFlag('--stack')) {
+    questions.push({
+      type: 'list',
+      name: 'stack',
+      message: 'Stack base:',
+      choices: [...PROJECT_STACKS],
+      default: options.stack,
+    })
+  }
+
+  if (!hasExplicitFlag('--infra')) {
+    questions.push({
+      type: 'list',
+      name: 'infra',
+      message: 'Infraestructura objetivo:',
+      choices: [...INFRA_TYPES],
+      default: options.infra,
+    })
+  }
+
+  const overrides = questions.length > 0
+    ? await inquirer.prompt<Partial<InitOptions>>(questions)
+    : {}
+
+  return {
+    ...options,
+    ...overrides,
+  }
+}
+
+async function pruneTemplateBySelection(destDir: string, selection: {
+  type: string
+  size: string
+  infra: string
+  capabilities: string[]
+}): Promise<void> {
+  const infraRoot = path.join(destDir, '.infra')
+  const infraDirs = ['vps', 'hosting', 'cloud']
+
+  for (const infraDir of infraDirs) {
+    if (infraDir !== selection.infra) {
+      await fs.remove(path.join(infraRoot, infraDir))
+    }
+  }
+
+  if (selection.infra !== 'vps') {
+    return
+  }
+
+  const dockerComposeRoot = path.join(infraRoot, 'vps', 'docker-compose')
+  const capabilityDir = path.join(dockerComposeRoot, 'capabilities')
+  const sizeDir = path.join(dockerComposeRoot, 'sizes')
+  const profileDir = path.join(dockerComposeRoot, 'profiles')
+
+  if (await fs.pathExists(capabilityDir)) {
+    for (const item of await fs.readdir(capabilityDir)) {
+      const capabilityName = path.parse(item).name
+      if (!selection.capabilities.includes(capabilityName)) {
+        await fs.remove(path.join(capabilityDir, item))
+      }
+    }
+  }
+
+  if (await fs.pathExists(sizeDir)) {
+    for (const item of await fs.readdir(sizeDir)) {
+      const sizeName = path.parse(item).name
+      if (sizeName !== selection.size) {
+        await fs.remove(path.join(sizeDir, item))
+      }
+    }
+  }
+
+  if (await fs.pathExists(profileDir)) {
+    const selectedProfilePath = path.join(profileDir, `${selection.type}.yml`)
+    const hasSelectedProfile = await fs.pathExists(selectedProfilePath)
+
+    if (hasSelectedProfile) {
+      for (const item of await fs.readdir(profileDir)) {
+        const profileName = path.parse(item).name
+        if (profileName !== selection.type) {
+          await fs.remove(path.join(profileDir, item))
+        }
+      }
     }
   }
 }
@@ -89,6 +214,8 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     process.exit(1)
   }
 
+  const resolvedOptions = await resolveInitOptions(options)
+
   // Preguntas interactivas
   const answers = await inquirer.prompt([
     {
@@ -126,13 +253,7 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
       type: 'checkbox',
       name: 'capabilities',
       message: 'Capabilities a activar:',
-      choices: [
-        { name: 'ai — Agente de IA', value: 'ai' },
-        { name: 'automation — Worker de automatización', value: 'automation' },
-        { name: 'native — App móvil (CORS extendido)', value: 'native' },
-        { name: 'realtime — WebSocket / polling', value: 'realtime' },
-        { name: 'media — Worker de archivos', value: 'media' },
-      ],
+      choices: [...CAPABILITY_CHOICES],
       default: options.capabilities ? options.capabilities.split(',') : [],
     },
   ])
@@ -146,9 +267,9 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     OPERATOR: answers.operator,
     DATE: date,
     CONTRACT_TYPE: answers.contractType,
-    PROJECT_TYPE: options.type,
-    PROJECT_SIZE: options.size,
-    INFRA_TYPE: options.infra,
+    PROJECT_TYPE: resolvedOptions.type,
+    PROJECT_SIZE: resolvedOptions.size,
+    INFRA_TYPE: resolvedOptions.infra,
     ENGINE_VERSION: '1.0.0',
     DOMAIN: answers.domain,
     EMAIL: answers.email,
@@ -165,9 +286,9 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     config.contract.type = answers.contractType
     config.contract.history[0].type = answers.contractType
     config.contract.history[0].started = date
-    config.project_profile.type = options.type
-    config.project_profile.size = options.size
-    config.hosting_type = options.infra
+    config.project_profile.type = resolvedOptions.type
+    config.project_profile.size = resolvedOptions.size
+    config.hosting_type = resolvedOptions.infra
     config.capabilities = caps
     await fs.writeJson(projectConfigPath, config, { spaces: 2 })
     await updateCanonicalFiles(destDir, config, new Date().toISOString())
@@ -181,9 +302,9 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     state.contract.type = answers.contractType
     state.contract.history[0].type = answers.contractType
     state.contract.history[0].started = date
-    state.project_profile.type = options.type
-    state.project_profile.size = options.size
-    state.hosting_type = options.infra
+    state.project_profile.type = resolvedOptions.type
+    state.project_profile.size = resolvedOptions.size
+    state.hosting_type = resolvedOptions.infra
     state.generated_at = date
     await fs.writeJson(statePath, state, { spaces: 2 })
   }
@@ -197,17 +318,12 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     }
   }
 
-  // Eliminar capabilities no activadas del docker-compose
-  if (caps.length === 0) {
-    const capabilitiesDir = path.join(destDir, '.infra', 'vps', 'docker-compose', 'capabilities')
-    const allCaps = ['ai', 'automation', 'native', 'realtime', 'media']
-    for (const cap of allCaps) {
-      const capFile = path.join(capabilitiesDir, `${cap}.yml`)
-      if (await fs.pathExists(capFile)) {
-        // mantener todos los capabilities en el template — el operador elige cuál usar
-      }
-    }
-  }
+  await pruneTemplateBySelection(destDir, {
+    type: resolvedOptions.type,
+    size: resolvedOptions.size,
+    infra: resolvedOptions.infra,
+    capabilities: caps,
+  })
 
   // Inicializar git
   console.log(chalk.cyan('→ Inicializando repositorio git...'))
@@ -232,10 +348,15 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
   console.log(chalk.cyan(`  wodlie status`))
   console.log(chalk.cyan(`  wodlie health`))
   console.log('')
+  console.log(chalk.bold('Selección aplicada:'))
+  console.log(`  type=${resolvedOptions.type} · size=${resolvedOptions.size} · stack=${resolvedOptions.stack} · infra=${resolvedOptions.infra}`)
+  console.log('')
 
   if (caps.length > 0) {
     console.log(chalk.bold(`Capabilities activadas: ${caps.join(', ')}`))
-    console.log(chalk.dim(`  Ver .infra/vps/docker-compose/capabilities/ para los archivos de compose`))
+    if (resolvedOptions.infra === 'vps') {
+      console.log(chalk.dim(`  Se conservaron solo los compose de capabilities seleccionados en .infra/vps/docker-compose/capabilities/`))
+    }
     console.log('')
   }
 }

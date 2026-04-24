@@ -7,6 +7,17 @@ Estados usados:
 - `guided`: útil, pero deja pasos manuales
 - `planned`: existe como placeholder, no resuelve el flujo completo
 
+## Shell interactiva
+
+### `wodlie`
+
+Estado: `implemented`
+
+Abre una shell interactiva:
+- ` / ` abre la paleta de comandos
+- permite ejecutar acciones frecuentes sin memorizar flags
+- guía prompts para init, épicos, historias, estados, reportes y utilidades operativas
+
 ## Inicialización
 
 ### `wodlie init <proyecto>`
@@ -26,9 +37,23 @@ Flags:
 - `--capabilities` — ai, automation, native, realtime, media (separados por coma)
 - `--infra` — vps | hosting | cloud (default: vps)
 
+Además del modo con flags, `init` pregunta de forma interactiva por:
+- tipo
+- tamaño
+- stack
+- infraestructura
+- datos operativos del proyecto
+- capabilities
+
+Qué recorta hoy según la selección:
+- `.infra/` conserva solo la carpeta elegida
+- `.infra/vps/docker-compose/sizes/` conserva solo el tamaño elegido
+- `.infra/vps/docker-compose/profiles/` conserva el perfil elegido si existe
+- `.infra/vps/docker-compose/capabilities/` conserva solo las capabilities elegidas
+
 Limitaciones actuales:
 - `--stack` acepta valores `node|python|go`, pero solo `node-fastify` está implementado.
-- no compone templates por perfil; copia el template base y reemplaza variables.
+- todavía no compone el código fuente completo por `type`, `size`, `infra` o `capabilities`; hoy el recorte fuerte está concentrado en infra.
 
 ---
 
