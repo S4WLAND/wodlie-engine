@@ -1,2 +1,104 @@
-# wodlie-engine
-Wodlie Inc.
+# @s4wland/wodlie-engine
+
+> Engine CLI para proyectos greenfield con modelo canónico de negocio, eventos y artefactos derivados.
+> El estado estructural se gobierna desde comandos del engine; la IA asiste, pero no escribe a mano los artefactos sensibles.
+
+## Estado actual
+
+- Base implementada:
+  - `init` para generar un proyecto `node-fastify`
+  - modelo canónico en `.wodlie-config/`
+  - comandos de negocio para épicos, historias, estados y pivots
+  - eventos en `.wodlie-config/events.jsonl`
+  - sincronización de `overview.md`, `progress.*`, `state.json` y reportes semanales
+- No implementado todavía:
+  - servidor MCP
+  - reconciliación avanzada de drift
+  - portabilidad agentica real de módulos entre proyectos
+  - despliegue automático end-to-end
+  - upgrade/reimport/deliver automáticos
+
+## Instalación local
+
+El repositorio está pensado para desarrollo local del engine.
+
+### Prerrequisitos
+
+- Node.js >= 20.0.0
+- Git
+- npm
+
+### Instalar dependencias
+
+```bash
+npm install
+```
+
+### Verificar build y smoke tests
+
+```bash
+npm run build
+npm run test:run
+```
+
+---
+
+## Uso rápido del engine
+
+```bash
+# Crear nuevo proyecto
+npm run dev -- init mi-proyecto \
+  --type webapp \
+  --size medium \
+  --stack node
+
+# Ver estado del proyecto
+cd mi-proyecto
+wodlie status
+
+# Crear épico e historia canónicos
+wodlie business:epic:create EP-001 "Onboarding"
+wodlie business:story:create EP-001 US-001 "Registrar brief" --as operador --want "capturar el brief" --so-that "arrancar con contexto"
+
+# Marcar avance desde DEV
+wodlie dev:story:complete US-001
+
+# Generar borrador de reporte semanal
+wodlie report:draft
+```
+
+---
+
+## Documentación
+
+| Documento | Descripción |
+|---|---|
+| [Getting Started](docs/getting-started.md) | Flujo real de instalación y primer proyecto |
+| [Comandos](docs/commands.md) | Estado exacto de cada comando |
+| [Templates](docs/templates.md) | Qué genera hoy el template y qué no |
+| [Agentes](docs/agents.md) | Cómo debe trabajar la IA con el engine actual |
+| [Deploy](docs/deployment.md) | Estado real del flujo de deploy |
+| [Current State](docs/current-state.md) | Qué está implementado y qué falta para la visión completa |
+| [Philosophy](docs/philosophy.md) | Filosofía objetivo y gap contra el estado real |
+
+## Regla de uso
+
+Los artefactos estructurados que impactan estado, métricas o eventos no se escriben a mano.
+La IA o el operador deben usar comandos del engine.
+MCP todavía no está implementado en este repositorio.
+
+---
+
+## Stack soportado
+
+| Stack | Estado |
+|---|---|
+| node-fastify | implementado |
+| python-fastapi | no implementado |
+| go-gin | no implementado |
+
+---
+
+## Licencia
+
+Privado — uso exclusivo de Wodlie y operadores autorizados.
