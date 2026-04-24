@@ -12,7 +12,20 @@ interface InitOptions {
   infra: string
 }
 
-const TEMPLATE_DIR = path.join(__dirname, '../../templates/node-fastify')
+function resolveTemplateDir(): string {
+  const candidates = [
+    path.join(__dirname, '../templates/node-fastify'),
+    path.join(__dirname, '../../src/templates/node-fastify'),
+  ]
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate
+    }
+  }
+
+  throw new Error(`No se encontró el template node-fastify. Rutas probadas: ${candidates.join(', ')}`)
+}
 const PROJECT_TYPES = ['webapp', 'platform', 'enterprise', 'iot'] as const
 const PROJECT_SIZES = ['small', 'medium', 'large'] as const
 const PROJECT_STACKS = ['node', 'python', 'go'] as const
@@ -276,7 +289,7 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
   })
 
   console.log(chalk.cyan('\n→ Copiando template...'))
-  await copyTemplate(TEMPLATE_DIR, destDir)
+  await copyTemplate(resolveTemplateDir(), destDir)
 
   // Actualizar .wodlie-config/project.json con valores reales
   const projectConfigPath = path.join(destDir, '.wodlie-config', 'project.json')
@@ -345,8 +358,8 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
   console.log(chalk.bold('Próximos pasos:'))
   console.log(chalk.cyan(`  cd ${proyecto}`))
   console.log(chalk.cyan(`  cp .dev/src/backend-api/.env.example .dev/src/backend-api/.env.development`))
-  console.log(chalk.cyan(`  wodlie status`))
-  console.log(chalk.cyan(`  wodlie health`))
+  console.log(chalk.cyan(`  wodlie-engine status`))
+  console.log(chalk.cyan(`  wodlie-engine health`))
   console.log('')
   console.log(chalk.bold('Selección aplicada:'))
   console.log(`  type=${resolvedOptions.type} · size=${resolvedOptions.size} · stack=${resolvedOptions.stack} · infra=${resolvedOptions.infra}`)
