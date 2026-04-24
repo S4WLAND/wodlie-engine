@@ -1,0 +1,4 @@
+# Ejemplo de .npmrc para instalación del engine
+# Copiar a ~/.npmrc
+
+@s4wland:registry=https://registry.npmjs.org

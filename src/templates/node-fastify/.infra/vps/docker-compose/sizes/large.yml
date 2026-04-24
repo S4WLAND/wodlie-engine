@@ -1,0 +1,41 @@
+version: '3.8'
+
+# Tamaño: large — VPS 8 vCPU / 8GB RAM
+# Usar junto con base.yml:
+#   docker compose -f base.yml -f sizes/large.yml up -d
+
+services:
+  api:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      replicas: 2
+
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  frontend-public:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  frontend-admin:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G

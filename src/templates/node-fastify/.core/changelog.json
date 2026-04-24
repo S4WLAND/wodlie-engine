@@ -1,0 +1,14 @@
+{
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "{{DATE}}",
+      "layer": "core",
+      "type": "NUEVO",
+      "description": "Inicialización del proyecto con wodlie-engine",
+      "operator": "{{OPERATOR}}",
+      "impact": ["business", "infra", "dev"],
+      "stories_affected": []
+    }
+  ]
+}

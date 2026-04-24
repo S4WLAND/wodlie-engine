@@ -1,0 +1,23 @@
+version: '3.8'
+
+# Capability: automation
+# Agrega worker de automatización para tareas programadas
+# Activar con: wodlie init --capabilities automation
+
+services:
+  worker-automation:
+    image: {{PROJECT_NAME}}-api:latest
+    container_name: {{PROJECT_NAME}}-worker-automation
+    restart: unless-stopped
+    command: ["node", "dist/workers/automation.worker.js"]
+    env_file: .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - internal

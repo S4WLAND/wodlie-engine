@@ -1,0 +1,48 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build images
+        run: |
+          docker build -t ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-api:latest \
+            .dev/src/backend-api
+          docker build -t ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-public:latest \
+            .dev/src/frontend-public
+          docker build -t ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-admin:latest \
+            .dev/src/frontend-admin
+
+      - name: Push images
+        run: |
+          docker push ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-api:latest
+          docker push ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-public:latest
+          docker push ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-admin:latest
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/deploy/{{PROJECT_NAME}}
+            docker compose pull
+            docker compose up -d --force-recreate
+            docker compose exec api npm run db:migrate
+            echo "Producción deploy completado: $(date)"
+
+      - name: Notify
+        if: always()
+        run: |
+          curl -s -X POST ${{ secrets.NTFY_URL }}/${{ secrets.NTFY_TOPIC }} \
+            -H "Title: Deploy {{PROJECT_NAME}}" \
+            -d "Producción deploy ${{ job.status }} — $(date)"

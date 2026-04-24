@@ -1,0 +1,41 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build images
+        run: |
+          docker build -t ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-api:staging \
+            .dev/src/backend-api
+          docker build -t ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-public:staging \
+            .dev/src/frontend-public
+          docker build -t ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-admin:staging \
+            .dev/src/frontend-admin
+
+      - name: Push images
+        run: |
+          docker push ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-api:staging
+          docker push ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-public:staging
+          docker push ${{ vars.REGISTRY }}/{{PROJECT_NAME}}-admin:staging
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/deploy/{{PROJECT_NAME}}-staging
+            docker compose pull
+            docker compose up -d --force-recreate
+            docker compose exec api node dist/cli/seed.js --env staging
+            echo "Staging deploy completado: $(date)"

@@ -1,0 +1,11 @@
+version: '3.8'
+
+# Capability: native (app móvil)
+# Configura CORS extendido en la API para clientes móviles nativos
+# Activar con: wodlie init --capabilities native
+
+services:
+  api:
+    environment:
+      - CORS_ALLOW_MOBILE=true
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS},capacitor://localhost,ionic://localhost

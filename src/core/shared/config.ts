@@ -1,0 +1,36 @@
+/**
+ * Shared: Configuración del proyecto
+ * Lee .wodlie-config/project.json
+ */
+import fs from 'fs-extra'
+import path from 'path'
+
+export interface ProjectConfig {
+  project: string
+  active?: boolean
+  contract?: {
+    type: 'fixed' | 'subscription'
+    history: Array<{ type: string; started: string; ended: string | null }>
+  }
+  contract_type?: 'fixed' | 'subscription'
+  project_profile: {
+    type: 'webapp' | 'platform' | 'enterprise' | 'iot'
+    size: 'small' | 'medium' | 'large'
+  }
+  hosting_type: 'vps' | 'hosting' | 'cloud'
+  capabilities: string[]
+  stack: string
+  apps: {
+    backend: string
+    frontend_public: string
+    frontend_admin: string
+  }
+}
+
+export async function loadProjectConfig(): Promise<ProjectConfig> {
+  const configPath = path.join(process.cwd(), '.wodlie-config', 'project.json')
+  if (!await fs.pathExists(configPath)) {
+    throw new Error('No se encontró .wodlie-config/project.json. ¿Estás en un proyecto Wodlie?')
+  }
+  return fs.readJson(configPath)
+}

@@ -1,0 +1,43 @@
+version: '3.8'
+
+# Perfil: enterprise
+# Agrega: todo de platform + MQTT broker + InfluxDB para métricas
+# Usar junto con base.yml + webapp.yml + platform.yml:
+#   docker compose -f base.yml -f profiles/webapp.yml -f profiles/platform.yml \
+#                  -f profiles/enterprise.yml up -d
+
+services:
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: {{PROJECT_NAME}}-mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "8883:8883"
+    volumes:
+      - mqtt_config:/mosquitto/config
+      - mqtt_data:/mosquitto/data
+      - mqtt_log:/mosquitto/log
+    networks:
+      - internal
+
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: {{PROJECT_NAME}}-influxdb
+    restart: unless-stopped
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USER:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: {{PROJECT_NAME}}
+      DOCKER_INFLUXDB_INIT_BUCKET: metrics
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - internal
+
+volumes:
+  mqtt_config:
+  mqtt_data:
+  mqtt_log:
+  influxdb_data:

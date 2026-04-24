@@ -1,0 +1,41 @@
+version: '3.8'
+
+# Perfil: webapp
+# Agrega: worker de jobs + almacenamiento MinIO
+# Usar junto con base.yml:
+#   docker compose -f base.yml -f profiles/webapp.yml up -d
+
+services:
+  worker:
+    image: {{PROJECT_NAME}}-api:latest
+    container_name: {{PROJECT_NAME}}-worker
+    restart: unless-stopped
+    command: ["node", "dist/workers/notifications.worker.js"]
+    env_file: .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  minio:
+    image: minio/minio:latest
+    container_name: {{PROJECT_NAME}}-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio.rule=Host(`storage.{{DOMAIN}}`)"
+      - "traefik.http.routers.minio.entrypoints=websecure"
+      - "traefik.http.routers.minio.tls.certresolver=letsencrypt"
+      - "traefik.http.services.minio.loadbalancer.server.port=9000"
+    networks:
+      - internal
+
+volumes:
+  minio_data:

@@ -1,0 +1,25 @@
+version: '3.8'
+
+# Capability: ai
+# Agrega el servicio agent-service para procesamiento con IA
+# Activar con: wodlie init --capabilities ai
+
+services:
+  agent-service:
+    image: {{PROJECT_NAME}}-agent:latest
+    container_name: {{PROJECT_NAME}}-agent
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      - NODE_ENV=production
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    networks:
+      - internal

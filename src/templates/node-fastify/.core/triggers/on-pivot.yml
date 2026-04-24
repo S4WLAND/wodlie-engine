@@ -1,0 +1,12 @@
+event: on-pivot
+description: Se ejecuta cuando el cliente solicita un cambio de dirección
+steps:
+  - layer: BUSINESS
+    run: scripts/pivot-record.sh
+    description: Registra el pivot en changelog.md de business con tipo PIVOT
+  - layer: CORE
+    run: scripts/status.sh
+    description: Actualiza state.json con contador de pivots
+  - layer: CORE
+    run: scripts/status.sh --changelog
+    description: Propaga el pivot al changelog global

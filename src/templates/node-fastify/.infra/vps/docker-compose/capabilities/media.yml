@@ -1,0 +1,45 @@
+version: '3.8'
+
+# Capability: media (procesamiento de archivos)
+# Agrega worker de media + MinIO para almacenamiento
+# Activar con: wodlie init --capabilities media
+
+services:
+  worker-media:
+    image: {{PROJECT_NAME}}-api:latest
+    container_name: {{PROJECT_NAME}}-worker-media
+    restart: unless-stopped
+    command: ["node", "dist/workers/media.worker.js"]
+    env_file: .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    networks:
+      - internal
+
+  minio:
+    image: minio/minio:latest
+    container_name: {{PROJECT_NAME}}-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio.rule=Host(`storage.{{DOMAIN}}`)"
+      - "traefik.http.routers.minio.entrypoints=websecure"
+      - "traefik.http.routers.minio.tls.certresolver=letsencrypt"
+      - "traefik.http.services.minio.loadbalancer.server.port=9000"
+    networks:
+      - internal
+
+volumes:
+  minio_data:

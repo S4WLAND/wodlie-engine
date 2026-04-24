@@ -1,0 +1,40 @@
+version: '3.8'
+
+# Tamaño: medium — VPS 4 vCPU / 4GB RAM
+# Usar junto con base.yml:
+#   docker compose -f base.yml -f sizes/medium.yml up -d
+
+services:
+  api:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 2G
+        reservations:
+          cpus: '0.2'
+          memory: 512M
+
+  frontend-public:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 512M
+
+  frontend-admin:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 512M

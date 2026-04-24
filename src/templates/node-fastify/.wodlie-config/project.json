@@ -1,0 +1,22 @@
+{
+  "project": "{{PROJECT_NAME}}",
+  "active": true,
+  "contract": {
+    "type": "{{CONTRACT_TYPE}}",
+    "history": [
+      { "type": "{{CONTRACT_TYPE}}", "started": "{{DATE}}", "ended": null }
+    ]
+  },
+  "project_profile": {
+    "type": "{{PROJECT_TYPE}}",
+    "size": "{{PROJECT_SIZE}}"
+  },
+  "hosting_type": "{{INFRA_TYPE}}",
+  "capabilities": [],
+  "stack": "node-fastify",
+  "apps": {
+    "backend": "backend-api",
+    "frontend_public": "frontend-public",
+    "frontend_admin": "frontend-admin"
+  }
+}

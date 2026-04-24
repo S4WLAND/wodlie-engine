@@ -1,0 +1,33 @@
+version: '3.8'
+
+# Perfil: platform
+# Agrega: todo de webapp + agente de IA (agent-service)
+# Usar junto con base.yml y profiles/webapp.yml:
+#   docker compose -f base.yml -f profiles/webapp.yml -f profiles/platform.yml up -d
+
+services:
+  agent-service:
+    image: {{PROJECT_NAME}}-agent:latest
+    container_name: {{PROJECT_NAME}}-agent
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: {{PROJECT_NAME}}-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+
+volumes:
+  redis_data:

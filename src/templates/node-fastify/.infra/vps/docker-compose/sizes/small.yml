@@ -1,0 +1,40 @@
+version: '3.8'
+
+# Tamaño: small — VPS 2 vCPU / 2GB RAM
+# Usar junto con base.yml:
+#   docker compose -f base.yml -f sizes/small.yml up -d
+
+services:
+  api:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+
+  frontend-public:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  frontend-admin:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M

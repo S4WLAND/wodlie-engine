@@ -1,0 +1,12 @@
+event: on-milestone
+description: Se ejecuta cuando una historia de usuario es completada
+steps:
+  - layer: BUSINESS
+    run: scripts/progress-update.sh
+    description: Actualiza progress.json con la historia completada
+  - layer: CORE
+    run: scripts/status.sh
+    description: Recalcula métricas globales
+  - layer: CORE
+    run: scripts/status.sh --changelog
+    description: Registra el milestone en changelog.md
