@@ -65,10 +65,10 @@ export async function reportDraftCommand(): Promise<void> {
   await fs.ensureDir(reportDir)
   const totalStories = progress.stories.total
   const completed = progress.stories.completed
-  const inProgress = progress.stories.in_progress
-  const globalPct = totalStories > 0 ? Math.round((completed / totalStories) * 100) : 0
+  const inProgress = progress.summary.wip
+  const globalPct = progress.summary.progress_pct
   const inProgressStories = stories.filter((story) =>
-    ['activo', 'en-desarrollo', 'en-prueba'].includes(story.status),
+    ['ready', 'in-progress', 'in-review'].includes(story.status),
   )
 
   const date = new Date().toISOString().split('T')[0]
@@ -138,7 +138,7 @@ ${pivotsThisWeek.length > 0
 
 - Avance global: ${globalPct}%
 - Historias completadas: ${completed}/${totalStories}
-- Historias en progreso: ${inProgress}
+- Historias en ejecución: ${inProgress}
 `
 
   await fs.writeFile(reportPath, content)
@@ -198,7 +198,7 @@ export async function reportCommand(): Promise<void> {
 % Completar desde: Completado esta semana
 
 \\section*{Estado Actual}
-Avance global estimado: ${progress.stories.total > 0 ? Math.round((progress.stories.completed / progress.stories.total) * 100) : 0}\\%.
+Avance global estimado: ${progress.summary.progress_pct}\\%.
 
 \\section*{Próximas Acciones}
 % Completar desde: Plan para la próxima semana

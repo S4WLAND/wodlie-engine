@@ -1,420 +1,526 @@
 import chalk from 'chalk'
 import inquirer from 'inquirer'
-import { businessEpicCreateCommand, businessPivotCommand, businessStoryCreateCommand, businessStoryStatusCommand, businessSyncCommand, devStoryCompleteCommand } from '../core/business'
-import { deployCommand } from '../core/deploy'
-import { envSyncCommand } from '../core/env-sync'
-import { exportCommand } from '../core/export'
+import {
+  businessEpicArchiveCommand,
+  businessEpicCreateAutoCommand,
+  businessEpicEditCommand,
+  businessEpicStatusCommand,
+  businessPivotCommand,
+  businessStoryArchiveCommand,
+  businessStoryCreateAutoCommand,
+  businessStoryEditCommand,
+  businessStoryStatusCommand,
+  businessSyncCommand,
+  devStoryCompleteCommand,
+  listEpicsCommand,
+  listStoriesCommand,
+} from '../core/business'
 import { healthCommand } from '../core/health'
 import { initCommand } from '../core/init'
-import { purgeCommand } from '../core/purge'
 import { reportCommand, reportDraftCommand } from '../core/report'
-import { sshVerifyCommand } from '../core/ssh-verify'
 import { statusCommand } from '../core/status'
-import { triggerCommand } from '../core/trigger'
+import type { EpicRecord, StoryRecord } from '../core/shared/canonical'
 
-type ShellCommandId =
-  | '/init'
-  | '/status'
-  | '/health'
-  | '/epic'
-  | '/story'
-  | '/story-status'
-  | '/story-complete'
-  | '/pivot'
-  | '/sync'
-  | '/report-draft'
-  | '/report'
-  | '/deploy'
-  | '/trigger'
-  | '/env-sync'
-  | '/ssh-verify'
-  | '/export'
-  | '/purge'
-  | '/help'
-  | '/exit'
+type MenuValue =
+  | 'business'
+  | 'reports'
+  | 'project'
+  | 'back'
+  | 'exit'
+  | 'epics'
+  | 'stories'
+  | 'pivot'
+  | 'sync'
+  | 'create'
+  | 'browse'
+  | 'status'
+  | 'health'
+  | 'init'
+  | 'report-draft'
+  | 'report'
+  | 'view'
+  | 'edit'
+  | 'change-status'
+  | 'archive'
+  | 'complete'
 
-interface CommandDefinition {
-  id: ShellCommandId
-  label: string
-  description: string
+type StoryStatusOption = 'draft' | 'ready' | 'in-progress' | 'blocked' | 'in-review' | 'completed' | 'pivoted' | 'archived'
+type EpicStatusOption = 'draft' | 'active' | 'blocked' | 'completed' | 'pivoted' | 'archived'
+
+function printShellHeader(): void {
+  console.log(chalk.bold('\nWodlie Engine — Consola interactiva\n'))
+  console.log(chalk.dim('Navega por árbol. El engine genera IDs y sincroniza artefactos automáticamente.\n'))
 }
 
-const COMMANDS: CommandDefinition[] = [
-  { id: '/init', label: 'Nuevo proyecto', description: 'Crear un proyecto Wodlie con prompts guiados' },
-  { id: '/status', label: 'Estado', description: 'Sincronizar métricas y estado del proyecto actual' },
-  { id: '/health', label: 'Salud', description: 'Ver resumen de salud del proyecto' },
-  { id: '/epic', label: 'Crear épico', description: 'Registrar un épico en el modelo canónico' },
-  { id: '/story', label: 'Crear historia', description: 'Registrar una historia de usuario con prompts' },
-  { id: '/story-status', label: 'Cambiar estado de historia', description: 'Mover una historia entre draft, desarrollo, prueba y completado' },
-  { id: '/story-complete', label: 'Completar historia', description: 'Marcar una historia como terminada desde DEV' },
-  { id: '/pivot', label: 'Registrar pivot', description: 'Registrar un cambio de dirección global, por épico o por historia' },
-  { id: '/sync', label: 'Reconstruir negocio', description: 'Regenerar overview y artefactos derivados' },
-  { id: '/report-draft', label: 'Borrador semanal', description: 'Generar el reporte interno de la semana' },
-  { id: '/report', label: 'Reporte cliente', description: 'Generar el template .tex del reporte cliente' },
-  { id: '/deploy', label: 'Deploy guiado', description: 'Mostrar el flujo guiado de deploy' },
-  { id: '/trigger', label: 'Disparar trigger', description: 'Registrar deploy, incidente, milestone o pivot' },
-  { id: '/env-sync', label: 'Sincronizar envs', description: 'Copiar variables faltantes a .env.development' },
-  { id: '/ssh-verify', label: 'Verificar SSH', description: 'Probar conexión SSH según .env.development' },
-  { id: '/export', label: 'Exportar proyecto', description: 'Generar .wodlie-export con snapshot y estado' },
-  { id: '/purge', label: 'Purgar engine', description: 'Eliminar capas del engine tras snapshot git' },
-  { id: '/help', label: 'Ayuda', description: 'Mostrar comandos disponibles' },
-  { id: '/exit', label: 'Salir', description: 'Cerrar el modo interactivo' },
-]
+async function selectMenu<T extends string>(message: string, choices: Array<{ name: string; value: T }>): Promise<T> {
+  const { value } = await inquirer.prompt<{ value: T }>([
+    {
+      type: 'list',
+      name: 'value',
+      message,
+      pageSize: 12,
+      choices,
+    },
+  ])
 
-function printHelp(): void {
-  console.log(chalk.bold('\nWodlie Shell\n'))
-  console.log(chalk.dim('Escribe / para abrir la paleta de comandos o usa un slash command directo.\n'))
-  for (const command of COMMANDS) {
-    console.log(`${chalk.cyan(command.id.padEnd(15))} ${command.description}`)
+  return value
+}
+
+async function promptText(message: string, defaultValue = ''): Promise<string> {
+  const { value } = await inquirer.prompt<{ value: string }>([
+    {
+      type: 'input',
+      name: 'value',
+      message,
+      default: defaultValue,
+      filter: (input: string) => input.trim(),
+    },
+  ])
+
+  return value
+}
+
+async function promptRequired(message: string, defaultValue = ''): Promise<string> {
+  const { value } = await inquirer.prompt<{ value: string }>([
+    {
+      type: 'input',
+      name: 'value',
+      message,
+      default: defaultValue,
+      validate: (input: string) => input.trim().length > 0 || 'Requerido',
+      filter: (input: string) => input.trim(),
+    },
+  ])
+
+  return value
+}
+
+function filterEpics(epics: EpicRecord[], query: string): EpicRecord[] {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return epics
+  return epics.filter((epic) =>
+    epic.id.toLowerCase().includes(normalized)
+    || epic.title.toLowerCase().includes(normalized)
+    || epic.slug.toLowerCase().includes(normalized),
+  )
+}
+
+function filterStories(items: Array<{ epic: EpicRecord; story: StoryRecord }>, query: string) {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return items
+  return items.filter(({ epic, story }) =>
+    story.id.toLowerCase().includes(normalized)
+    || story.title.toLowerCase().includes(normalized)
+    || story.slug.toLowerCase().includes(normalized)
+    || epic.id.toLowerCase().includes(normalized)
+    || epic.title.toLowerCase().includes(normalized),
+  )
+}
+
+async function chooseEpic(message: string): Promise<EpicRecord | null> {
+  const epics = await listEpicsCommand()
+  if (epics.length === 0) {
+    console.log(chalk.yellow('\n⚠ No hay épicos cargados.\n'))
+    return null
   }
+
+  const query = await promptText('Buscar épico por ID, título o slug (enter para ver todo):')
+  const filtered = filterEpics(epics, query)
+  if (filtered.length === 0) {
+    console.log(chalk.yellow('\n⚠ No hubo coincidencias.\n'))
+    return null
+  }
+
+  const selectedId = await selectMenu(message, [
+    ...filtered.map((epic) => ({
+      name: `${epic.id} · ${epic.title} · ${epic.status}`,
+      value: epic.id,
+    })),
+    { name: 'Volver', value: '__back__' },
+  ])
+
+  if (selectedId === '__back__') return null
+  return filtered.find((epic) => epic.id === selectedId) ?? null
+}
+
+async function chooseStory(message: string): Promise<{ epic: EpicRecord; story: StoryRecord } | null> {
+  const stories = await listStoriesCommand()
+  if (stories.length === 0) {
+    console.log(chalk.yellow('\n⚠ No hay historias cargadas.\n'))
+    return null
+  }
+
+  const query = await promptText('Buscar historia por ID, título, slug o épico (enter para ver todo):')
+  const filtered = filterStories(stories, query)
+  if (filtered.length === 0) {
+    console.log(chalk.yellow('\n⚠ No hubo coincidencias.\n'))
+    return null
+  }
+
+  const selectedId = await selectMenu(message, [
+    ...filtered.map(({ epic, story }) => ({
+      name: `${story.id} · ${story.title} · ${story.status} · ${epic.id}`,
+      value: story.id,
+    })),
+    { name: 'Volver', value: '__back__' },
+  ])
+
+  if (selectedId === '__back__') return null
+  return filtered.find(({ story }) => story.id === selectedId) ?? null
+}
+
+function printEpicDetail(epic: EpicRecord): void {
+  console.log(chalk.bold(`\n${epic.id} — ${epic.title}`))
+  console.log(`Estado: ${epic.status}`)
+  console.log(`Stories: ${epic.stories.length}`)
+  console.log(`Slug: ${epic.slug}`)
+  console.log(`Descripción: ${epic.description || 'Sin descripción'}`)
   console.log('')
 }
 
-async function promptCommandPalette(): Promise<ShellCommandId> {
-  const { command } = await inquirer.prompt<{ command: ShellCommandId }>([
-    {
-      type: 'list',
-      name: 'command',
-      message: 'Selecciona una acción:',
-      pageSize: 18,
-      choices: COMMANDS.map((item) => ({
-        name: `${item.label} (${item.id}) — ${item.description}`,
-        value: item.id,
-      })),
-    },
-  ])
-
-  return command
+function printStoryDetail(epic: EpicRecord, story: StoryRecord): void {
+  console.log(chalk.bold(`\n${story.id} — ${story.title}`))
+  console.log(`Épico: ${epic.id} — ${epic.title}`)
+  console.log(`Estado: ${story.status}`)
+  console.log(`Prioridad: ${story.priority}`)
+  console.log(`Asignado: ${story.assignee}`)
+  console.log(`Como: ${story.role}`)
+  console.log(`Quiero: ${story.action}`)
+  console.log(`Para: ${story.benefit}`)
+  console.log('')
 }
 
-async function promptProjectName(): Promise<string> {
-  const { project } = await inquirer.prompt<{ project: string }>([
-    {
-      type: 'input',
-      name: 'project',
-      message: 'Nombre de la carpeta/proyecto:',
-      validate: (value: string) => value.trim().length > 0 || 'Requerido',
-      filter: (value: string) => value.trim(),
-    },
+async function promptEpicStatus(): Promise<EpicStatusOption> {
+  return selectMenu('Nuevo estado del épico:', [
+    { name: 'draft', value: 'draft' },
+    { name: 'active', value: 'active' },
+    { name: 'blocked', value: 'blocked' },
+    { name: 'completed', value: 'completed' },
+    { name: 'pivoted', value: 'pivoted' },
+    { name: 'archived', value: 'archived' },
   ])
-
-  return project
 }
 
-async function runSlashCommand(command: ShellCommandId): Promise<boolean> {
-  switch (command) {
-    case '/init': {
-      const project = await promptProjectName()
-      await initCommand(project, {
-        type: 'webapp',
-        size: 'medium',
-        stack: 'node',
-        infra: 'vps',
-      })
-      return true
+async function promptStoryStatus(): Promise<StoryStatusOption> {
+  return selectMenu('Nuevo estado de la historia:', [
+    { name: 'draft', value: 'draft' },
+    { name: 'ready', value: 'ready' },
+    { name: 'in-progress', value: 'in-progress' },
+    { name: 'blocked', value: 'blocked' },
+    { name: 'in-review', value: 'in-review' },
+    { name: 'completed', value: 'completed' },
+    { name: 'pivoted', value: 'pivoted' },
+    { name: 'archived', value: 'archived' },
+  ])
+}
+
+async function createEpicFlow(): Promise<void> {
+  const title = await promptRequired('Título del épico:')
+  const description = await promptText('Descripción breve:')
+  await businessEpicCreateAutoCommand(title, { description: description || undefined })
+}
+
+async function createStoryFlow(): Promise<void> {
+  const epic = await chooseEpic('Selecciona el épico padre:')
+  if (!epic) return
+
+  const title = await promptRequired('Título de la historia:')
+  const role = await promptRequired('Como:', 'operador')
+  const action = await promptRequired('Quiero:')
+  const benefit = await promptRequired('Para:')
+  const priority = await selectMenu<'alta' | 'media' | 'baja'>('Prioridad:', [
+    { name: 'alta', value: 'alta' },
+    { name: 'media', value: 'media' },
+    { name: 'baja', value: 'baja' },
+  ])
+  const assignee = await promptText('Responsable:', 'sin asignar')
+
+  await businessStoryCreateAutoCommand(epic.id, title, {
+    as: role,
+    want: action,
+    soThat: benefit,
+    priority,
+    assignee,
+  })
+}
+
+async function epicBrowseFlow(): Promise<void> {
+  let active = true
+  while (active) {
+    const epic = await chooseEpic('Selecciona un épico:')
+    if (!epic) return
+
+    const action = await selectMenu<MenuValue>(`Épico ${epic.id}`, [
+      { name: 'Ver detalle', value: 'view' },
+      { name: 'Editar', value: 'edit' },
+      { name: 'Cambiar estado', value: 'change-status' },
+      { name: 'Registrar pivot', value: 'pivot' },
+      { name: 'Archivar', value: 'archive' },
+      { name: 'Volver', value: 'back' },
+    ])
+
+    switch (action) {
+      case 'view':
+        printEpicDetail(epic)
+        break
+      case 'edit': {
+        const title = await promptText('Nuevo título (enter para mantener):', epic.title)
+        const description = await promptText('Nueva descripción:', epic.description)
+        await businessEpicEditCommand(epic.id, { title, description })
+        break
+      }
+      case 'change-status': {
+        const status = await promptEpicStatus()
+        await businessEpicStatusCommand(epic.id, status)
+        break
+      }
+      case 'pivot': {
+        const reason = await promptRequired('Motivo del pivot:')
+        await businessPivotCommand(epic.id, { reason })
+        break
+      }
+      case 'archive':
+        await businessEpicArchiveCommand(epic.id)
+        break
+      case 'back':
+        active = false
+        break
     }
-    case '/status':
-      await statusCommand()
-      return true
-    case '/health':
-      await healthCommand()
-      return true
-    case '/epic': {
-      const answers = await inquirer.prompt<{ id: string; title: string; description: string }>([
-        {
-          type: 'input',
-          name: 'id',
-          message: 'ID del épico:',
-          default: 'EP-001',
-          filter: (value: string) => value.trim().toUpperCase(),
-        },
-        {
-          type: 'input',
-          name: 'title',
-          message: 'Título del épico:',
-          validate: (value: string) => value.trim().length > 0 || 'Requerido',
-          filter: (value: string) => value.trim(),
-        },
-        {
-          type: 'input',
-          name: 'description',
-          message: 'Descripción breve:',
-          default: '',
-          filter: (value: string) => value.trim(),
-        },
-      ])
-      await businessEpicCreateCommand(answers.id, answers.title, { description: answers.description || undefined })
-      return true
-    }
-    case '/story': {
-      const answers = await inquirer.prompt<{
-        epicId: string
-        id: string
-        title: string
-        role: string
-        action: string
-        benefit: string
-        priority: 'alta' | 'media' | 'baja'
-        assignee: string
-      }>([
-        {
-          type: 'input',
-          name: 'epicId',
-          message: 'Épico al que pertenece:',
-          default: 'EP-001',
-          filter: (value: string) => value.trim().toUpperCase(),
-        },
-        {
-          type: 'input',
-          name: 'id',
-          message: 'ID de la historia:',
-          default: 'US-001',
-          filter: (value: string) => value.trim().toUpperCase(),
-        },
-        {
-          type: 'input',
-          name: 'title',
-          message: 'Título:',
-          validate: (value: string) => value.trim().length > 0 || 'Requerido',
-          filter: (value: string) => value.trim(),
-        },
-        {
-          type: 'input',
-          name: 'role',
-          message: 'Como:',
-          default: 'operador',
-          filter: (value: string) => value.trim(),
-        },
-        {
-          type: 'input',
-          name: 'action',
-          message: 'Quiero:',
-          validate: (value: string) => value.trim().length > 0 || 'Requerido',
-          filter: (value: string) => value.trim(),
-        },
-        {
-          type: 'input',
-          name: 'benefit',
-          message: 'Para:',
-          validate: (value: string) => value.trim().length > 0 || 'Requerido',
-          filter: (value: string) => value.trim(),
-        },
-        {
-          type: 'list',
-          name: 'priority',
-          message: 'Prioridad:',
-          choices: ['alta', 'media', 'baja'],
-          default: 'media',
-        },
-        {
-          type: 'input',
-          name: 'assignee',
-          message: 'Responsable:',
-          default: 'sin asignar',
-          filter: (value: string) => value.trim(),
-        },
-      ])
-      await businessStoryCreateCommand(answers.epicId, answers.id, answers.title, {
-        as: answers.role,
-        want: answers.action,
-        soThat: answers.benefit,
-        priority: answers.priority,
-        assignee: answers.assignee,
-      })
-      return true
-    }
-    case '/story-status': {
-      const answers = await inquirer.prompt<{ storyId: string; status: string }>([
-        {
-          type: 'input',
-          name: 'storyId',
-          message: 'Historia:',
-          default: 'US-001',
-          filter: (value: string) => value.trim().toUpperCase(),
-        },
-        {
-          type: 'list',
-          name: 'status',
-          message: 'Nuevo estado:',
-          choices: ['draft', 'activo', 'en-desarrollo', 'en-prueba', 'completado', 'pivotado'],
-          default: 'en-desarrollo',
-        },
-      ])
-      await businessStoryStatusCommand(answers.storyId, answers.status)
-      return true
-    }
-    case '/story-complete': {
-      const { storyId } = await inquirer.prompt<{ storyId: string }>([
-        {
-          type: 'input',
-          name: 'storyId',
-          message: 'Historia completada:',
-          default: 'US-001',
-          filter: (value: string) => value.trim().toUpperCase(),
-        },
-      ])
-      await devStoryCompleteCommand(storyId)
-      return true
-    }
-    case '/pivot': {
-      const answers = await inquirer.prompt<{ targetId: string; reason: string }>([
-        {
-          type: 'input',
-          name: 'targetId',
-          message: 'Target (global, EP-001 o US-001):',
-          default: 'global',
-          filter: (value: string) => value.trim(),
-        },
-        {
-          type: 'input',
-          name: 'reason',
-          message: 'Motivo del pivot:',
-          validate: (value: string) => value.trim().length > 0 || 'Requerido',
-          filter: (value: string) => value.trim(),
-        },
-      ])
-      await businessPivotCommand(answers.targetId, { reason: answers.reason })
-      return true
-    }
-    case '/sync':
-      await businessSyncCommand()
-      return true
-    case '/report-draft':
-      await reportDraftCommand()
-      return true
-    case '/report':
-      await reportCommand()
-      return true
-    case '/deploy': {
-      const answers = await inquirer.prompt<{ env: string; target: string; skip: string }>([
-        {
-          type: 'list',
-          name: 'env',
-          message: 'Entorno:',
-          choices: ['staging', 'production'],
-          default: 'staging',
-        },
-        {
-          type: 'list',
-          name: 'target',
-          message: 'Target:',
-          choices: ['all', 'api', 'front', 'admin', 'worker'],
-          default: 'all',
-        },
-        {
-          type: 'checkbox',
-          name: 'skip',
-          message: 'Checks a omitir:',
-          choices: ['tests', 'e2e', 'perf', 'security', 'a11y', 'ci'],
-          default: [],
-        },
-      ])
-      const skip = Array.isArray(answers.skip) ? answers.skip.join(',') : ''
-      await deployCommand({ env: answers.env, target: answers.target, skip })
-      return true
-    }
-    case '/trigger': {
-      const answers = await inquirer.prompt<{ name: string; project: string; story: string; epic: string }>([
-        {
-          type: 'list',
-          name: 'name',
-          message: 'Trigger:',
-          choices: ['on-deploy', 'on-incident', 'on-milestone', 'on-pivot'],
-        },
-        {
-          type: 'input',
-          name: 'project',
-          message: 'Proyecto (opcional):',
-          default: '',
-          filter: (value: string) => value.trim(),
-        },
-        {
-          type: 'input',
-          name: 'story',
-          message: 'Historia (opcional):',
-          default: '',
-          filter: (value: string) => value.trim(),
-        },
-        {
-          type: 'input',
-          name: 'epic',
-          message: 'Épico (opcional):',
-          default: '',
-          filter: (value: string) => value.trim(),
-        },
-      ])
-      await triggerCommand(answers.name, {
-        project: answers.project || undefined,
-        story: answers.story || undefined,
-        epic: answers.epic || undefined,
-      })
-      return true
-    }
-    case '/env-sync':
-      await envSyncCommand()
-      return true
-    case '/ssh-verify':
-      await sshVerifyCommand()
-      return true
-    case '/export':
-      await exportCommand()
-      return true
-    case '/purge':
-      await purgeCommand()
-      return true
-    case '/help':
-      printHelp()
-      return true
-    case '/exit':
-      return false
   }
 }
 
-function normalizeSlashCommand(raw: string): ShellCommandId | null {
-  const normalized = raw.trim().toLowerCase()
-  if (!normalized) return null
+async function storyBrowseFlow(): Promise<void> {
+  let active = true
+  while (active) {
+    const target = await chooseStory('Selecciona una historia:')
+    if (!target) return
 
-  const aliases: Record<string, ShellCommandId> = {
-    '/': '/help',
-    '/story-completed': '/story-complete',
-    '/draft': '/report-draft',
-    '/sync-business': '/sync',
-    exit: '/exit',
-    quit: '/exit',
+    const action = await selectMenu<MenuValue>(`Historia ${target.story.id}`, [
+      { name: 'Ver detalle', value: 'view' },
+      { name: 'Editar', value: 'edit' },
+      { name: 'Cambiar estado', value: 'change-status' },
+      { name: 'Marcar completada', value: 'complete' },
+      { name: 'Registrar pivot', value: 'pivot' },
+      { name: 'Archivar', value: 'archive' },
+      { name: 'Volver', value: 'back' },
+    ])
+
+    switch (action) {
+      case 'view':
+        printStoryDetail(target.epic, target.story)
+        break
+      case 'edit': {
+        const title = await promptText('Nuevo título:', target.story.title)
+        const role = await promptText('Como:', target.story.role)
+        const actionText = await promptText('Quiero:', target.story.action)
+        const benefit = await promptText('Para:', target.story.benefit)
+        const priority = await selectMenu<'alta' | 'media' | 'baja'>('Prioridad:', [
+          { name: 'alta', value: 'alta' },
+          { name: 'media', value: 'media' },
+          { name: 'baja', value: 'baja' },
+        ])
+        const assignee = await promptText('Responsable:', target.story.assignee)
+        await businessStoryEditCommand(target.story.id, {
+          title,
+          as: role,
+          want: actionText,
+          soThat: benefit,
+          priority,
+          assignee,
+        })
+        break
+      }
+      case 'change-status': {
+        const status = await promptStoryStatus()
+        await businessStoryStatusCommand(target.story.id, status)
+        break
+      }
+      case 'complete':
+        await devStoryCompleteCommand(target.story.id)
+        break
+      case 'pivot': {
+        const reason = await promptRequired('Motivo del pivot:')
+        await businessPivotCommand(target.story.id, { reason })
+        break
+      }
+      case 'archive':
+        await businessStoryArchiveCommand(target.story.id)
+        break
+      case 'back':
+        active = false
+        break
+    }
   }
+}
 
-  const resolved = aliases[normalized] ?? normalized
-  return COMMANDS.some((command) => command.id === resolved) ? (resolved as ShellCommandId) : null
+async function epicsMenu(): Promise<void> {
+  let active = true
+  while (active) {
+    const action = await selectMenu<MenuValue>('Business > Epics', [
+      { name: 'Crear épico', value: 'create' },
+      { name: 'Explorar / editar épicos', value: 'browse' },
+      { name: 'Volver', value: 'back' },
+    ])
+
+    switch (action) {
+      case 'create':
+        await createEpicFlow()
+        break
+      case 'browse':
+        await epicBrowseFlow()
+        break
+      case 'back':
+        active = false
+        break
+    }
+  }
+}
+
+async function storiesMenu(): Promise<void> {
+  let active = true
+  while (active) {
+    const action = await selectMenu<MenuValue>('Business > Stories', [
+      { name: 'Crear historia', value: 'create' },
+      { name: 'Explorar / editar historias', value: 'browse' },
+      { name: 'Volver', value: 'back' },
+    ])
+
+    switch (action) {
+      case 'create':
+        await createStoryFlow()
+        break
+      case 'browse':
+        await storyBrowseFlow()
+        break
+      case 'back':
+        active = false
+        break
+    }
+  }
+}
+
+async function businessMenu(): Promise<void> {
+  let active = true
+  while (active) {
+    const action = await selectMenu<MenuValue>('Business', [
+      { name: 'Epics', value: 'epics' },
+      { name: 'Stories', value: 'stories' },
+      { name: 'Registrar pivot global', value: 'pivot' },
+      { name: 'Sincronizar artefactos', value: 'sync' },
+      { name: 'Volver', value: 'back' },
+    ])
+
+    switch (action) {
+      case 'epics':
+        await epicsMenu()
+        break
+      case 'stories':
+        await storiesMenu()
+        break
+      case 'pivot': {
+        const reason = await promptRequired('Motivo del pivot global:')
+        await businessPivotCommand('global', { reason })
+        break
+      }
+      case 'sync':
+        await businessSyncCommand()
+        break
+      case 'back':
+        active = false
+        break
+    }
+  }
+}
+
+async function reportsMenu(): Promise<void> {
+  let active = true
+  while (active) {
+    const action = await selectMenu<MenuValue>('Reports', [
+      { name: 'Generar borrador semanal', value: 'report-draft' },
+      { name: 'Generar template cliente', value: 'report' },
+      { name: 'Volver', value: 'back' },
+    ])
+
+    switch (action) {
+      case 'report-draft':
+        await reportDraftCommand()
+        break
+      case 'report':
+        await reportCommand()
+        break
+      case 'back':
+        active = false
+        break
+    }
+  }
+}
+
+async function projectMenu(): Promise<void> {
+  let active = true
+  while (active) {
+    const action = await selectMenu<MenuValue>('Project', [
+      { name: 'Inicializar proyecto nuevo', value: 'init' },
+      { name: 'Sincronizar status', value: 'status' },
+      { name: 'Ver health', value: 'health' },
+      { name: 'Volver', value: 'back' },
+    ])
+
+    switch (action) {
+      case 'init': {
+        const project = await promptRequired('Nombre del proyecto/carpeta:')
+        await initCommand(project, {
+          type: 'webapp',
+          size: 'medium',
+          stack: 'node',
+          infra: 'vps',
+        })
+        break
+      }
+      case 'status':
+        await statusCommand()
+        break
+      case 'health':
+        await healthCommand()
+        break
+      case 'back':
+        active = false
+        break
+    }
+  }
 }
 
 export async function runInteractiveShell(): Promise<void> {
-  console.log(chalk.bold('\nWodlie Engine — Shell interactiva\n'))
-  console.log(chalk.dim('Usa / para abrir comandos, /help para verlos o /exit para salir.\n'))
+  printShellHeader()
 
   let active = true
-
   while (active) {
-    const { rawCommand } = await inquirer.prompt<{ rawCommand: string }>([
-      {
-        type: 'input',
-        name: 'rawCommand',
-        message: 'wodlie-engine',
-        prefix: '',
-      },
-    ])
-
-    let command = normalizeSlashCommand(rawCommand)
-    if (!command) {
-      command = await promptCommandPalette()
-    }
-
     try {
-      active = await runSlashCommand(command)
+      const action = await selectMenu<MenuValue>('Menú principal', [
+        { name: 'Business', value: 'business' },
+        { name: 'Reports', value: 'reports' },
+        { name: 'Project', value: 'project' },
+        { name: 'Salir', value: 'exit' },
+      ])
+
+      switch (action) {
+        case 'business':
+          await businessMenu()
+          break
+        case 'reports':
+          await reportsMenu()
+          break
+        case 'project':
+          await projectMenu()
+          break
+        case 'exit':
+          active = false
+          break
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error no controlado'
       console.error(chalk.red(`\n✗ ${message}\n`))
     }
   }
 
-  console.log(chalk.dim('\nSaliendo de Wodlie Shell.\n'))
+  console.log(chalk.dim('\nSaliendo de Wodlie Engine.\n'))
 }

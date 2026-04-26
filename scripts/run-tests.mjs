@@ -67,8 +67,8 @@ async function withTempProject(run) {
 
 async function testBusinessFlow() {
   await withTempProject(async (tempDir) => {
-    await businessEpicCreateCommand('EP-001', 'Pagos', { description: 'Cobros y conciliación.' })
-    await businessStoryCreateCommand('EP-001', 'US-001', 'Cobrar una orden', {
+    await businessEpicCreateCommand('Pagos', { description: 'Cobros y conciliación.' })
+    await businessStoryCreateCommand('EP-001', 'Cobrar una orden', {
       as: 'operador',
       want: 'registrar un cobro',
       soThat: 'la caja quede conciliada',
@@ -78,8 +78,8 @@ async function testBusinessFlow() {
 
     const businessModel = await fs.readJson(path.join(tempDir, '.wodlie-config', 'business.json'))
     assert.equal(businessModel.epics.length, 1)
-    assert.equal(businessModel.epics[0].status, 'completado')
-    assert.equal(businessModel.epics[0].stories[0].status, 'completado')
+    assert.equal(businessModel.epics[0].status, 'completed')
+    assert.equal(businessModel.epics[0].stories[0].status, 'completed')
 
     const overview = await fs.readFile(path.join(tempDir, '.business', 'requirements', 'overview.md'), 'utf-8')
     assert.match(overview, /EP-001/)
@@ -93,8 +93,8 @@ async function testBusinessFlow() {
 
 async function testReportDraft() {
   await withTempProject(async (tempDir) => {
-    await businessEpicCreateCommand('EP-001', 'Agenda', { description: 'Gestión de turnos.' })
-    await businessStoryCreateCommand('EP-001', 'US-001', 'Reservar un turno', {
+    await businessEpicCreateCommand('Agenda', { description: 'Gestión de turnos.' })
+    await businessStoryCreateCommand('EP-001', 'Reservar un turno', {
       as: 'cliente',
       want: 'reservar un turno',
       soThat: 'pueda asistir sin llamar',

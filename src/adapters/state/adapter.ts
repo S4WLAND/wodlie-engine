@@ -16,10 +16,33 @@ export interface StateData {
     history: Array<{ type: string; started: string; ended: string | null }>
   }
   health: {
-    new: { total: number; completed: number; in_progress: number; progress: string }
-    updates: { total: number; completed: number; in_progress: number; progress: string }
-    pivots: { total: number; completed: number; in_progress: number; progress: string }
-    ui_ux: { new: string; updated: string; pivoted: string }
+    summary: {
+      progress_pct: number
+      blocked_pct: number
+      pivoted_pct: number
+      wip: number
+      total_epics: number
+      total_stories: number
+      active_stories: number
+      completed_stories: number
+    }
+    backlog: {
+      draft: number
+      ready: number
+      in_progress: number
+      in_review: number
+      blocked: number
+      completed: number
+      pivoted: number
+      archived: number
+    }
+    risk: {
+      pivots: number
+      blocked: number
+      archived: number
+      active_edits: number
+      wip: number
+    }
   }
   last_deploy: string | null
   last_incident: string | null

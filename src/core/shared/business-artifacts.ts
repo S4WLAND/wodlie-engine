@@ -20,18 +20,21 @@ function manualNotes(content: string | null, marker: string, fallback: string): 
   return content.slice(index)
 }
 
+function epicCompletion(epic: EpicRecord): { completed: number; total: number; progressPct: number } {
+  const activeStories = epic.stories.filter((story) => !['pivoted', 'archived'].includes(story.status))
+  const completed = activeStories.filter((story) => story.status === 'completed').length
+  const total = activeStories.length
+  const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0
+  return { completed, total, progressPct }
+}
+
 export function renderOverviewMarkdown(config: ProjectConfig, model: BusinessModel): string {
   const progress = getBusinessProgress(model)
-  const percent = progress.stories.total > 0
-    ? Math.round((progress.stories.completed / progress.stories.total) * 100)
-    : 0
 
   const epicRows = model.epics.length > 0
     ? model.epics.map((epic) => {
-      const completed = epic.stories.filter((story) => story.status === 'completado').length
-      const total = epic.stories.length
-      const epicProgress = total > 0 ? Math.round((completed / total) * 100) : 0
-      return `| ${epic.id} | ${epic.title} | ${total} | ${completed} | ${epicProgress}% | ${formatEpicStatus(epic.status)} |`
+      const completion = epicCompletion(epic)
+      return `| ${epic.id} | ${epic.title} | ${completion.total} | ${completion.completed} | ${completion.progressPct}% | ${formatEpicStatus(epic.status)} |`
     }).join('\n')
     : '| — | Sin épicos registrados | 0 | 0 | 0% | draft |'
 
@@ -56,7 +59,7 @@ ${storyRows}`
     : '### EP-001 — [Nombre del Épico]\n\n> Sin épicos registrados todavía.'
 
   const pivots = model.pivots.length > 0
-    ? model.pivots.map((pivot) => `| ${pivot.target_id} | — | ${pivot.reason} | ${pivot.created_at.split('T')[0]} |`).join('\n')
+    ? model.pivots.map((pivot) => `| ${pivot.id} | ${pivot.target_id} | ${pivot.reason} | ${pivot.created_at.split('T')[0]} |`).join('\n')
     : '| — | — | — | — |'
 
   return `# Resumen Técnico de Requerimientos
@@ -69,18 +72,37 @@ ${storyRows}`
 
 | Métrica | Valor |
 |---|---|
-| Épicos totales | ${progress.epics.total} |
-| Historias totales (activas) | ${progress.stories.total} |
-| Historias completadas | ${progress.stories.completed} |
-| **Avance global** | **${percent}%** |
+| Épicos totales | ${progress.summary.total_epics} |
+| Historias totales | ${progress.summary.total_stories} |
+| Historias activas | ${progress.summary.active_stories} |
+| Historias completadas | ${progress.summary.completed_stories} |
+| Historias bloqueadas | ${progress.stories.blocked} |
+| WIP actual | ${progress.summary.wip} |
+| Pivots registrados | ${progress.pivots} |
+| **Avance global** | **${progress.summary.progress_pct}%** |
 
 ---
 
 ## Índice de Épicos
 
-| ID | Nombre | Historias | Completadas | Avance | Estado |
+| ID | Nombre | Historias activas | Completadas | Avance | Estado |
 |---|---|---|---|---|---|
 ${epicRows}
+
+---
+
+## Backlog y Ejecución
+
+| Estado | Historias |
+|---|---|
+| draft | ${progress.stories.by_status.draft} |
+| ready | ${progress.stories.by_status.ready} |
+| in-progress | ${progress.stories.by_status['in-progress']} |
+| in-review | ${progress.stories.by_status['in-review']} |
+| blocked | ${progress.stories.by_status.blocked} |
+| completed | ${progress.stories.by_status.completed} |
+| pivoted | ${progress.stories.by_status.pivoted} |
+| archived | ${progress.stories.by_status.archived} |
 
 ---
 
@@ -90,27 +112,17 @@ ${detail}
 
 ---
 
-## Requerimientos No Funcionales Globales
+## Riesgo y Cambio
 
-- **Performance:** derivar por historia o ADR
-- **Seguridad:** derivar por decisiones de arquitectura
-- **Disponibilidad:** definir por entorno
-- **Escalabilidad:** definir por perfil y capabilities
-- **Compatibilidad:** documentar por app
+- Bloqueadas sobre activas: ${progress.summary.blocked_pct}%
+- Pivotadas sobre histórico: ${progress.summary.pivoted_pct}%
+- WIP total: ${progress.summary.wip}
 
 ---
 
-## Restricciones Técnicas
+## Pivots Registrados
 
-- Stack backend: ${config.stack}
-- Entornos: dev → test → prod
-- CI/CD: definir o integrar según el proyecto
-
----
-
-## Historias Pivotadas
-
-| ID | Versión anterior | Motivo | Fecha |
+| Pivot | Target | Motivo | Fecha |
 |---|---|---|---|
 ${pivots}
 `
@@ -128,10 +140,14 @@ export function renderProgressMarkdown(config: ProjectConfig, model: BusinessMod
 > Proyecto: ${config.project}
 
 <!-- AUTO-GENERATED — no editar esta sección manualmente -->
-stories_completadas: ${progress.stories.completed}/${progress.stories.total}
-epics_activos: ${progress.epics.active}
-ultimo_deploy: null
-ultimo_incidente: null
+historias_totales: ${progress.summary.total_stories}
+historias_activas: ${progress.summary.active_stories}
+historias_completadas: ${progress.summary.completed_stories}
+historias_bloqueadas: ${progress.stories.blocked}
+wip_actual: ${progress.summary.wip}
+avance_global: ${progress.summary.progress_pct}%
+epicos_totales: ${progress.summary.total_epics}
+pivots_registrados: ${progress.pivots}
 ultima_actualizacion: ${model.updated_at.split('T')[0]}
 <!-- END AUTO-GENERATED -->
 
@@ -187,7 +203,7 @@ ${stories}
 
 ## Criterio de Completitud
 
-- Todas las historias en estado \`completado\`
+- Todas las historias activas en estado \`completed\`
 
 ---
 
@@ -330,8 +346,8 @@ async function patchFrontMatterLine(filePath: string, pattern: RegExp, replaceme
   }
 }
 
-export async function patchStoryMetadata(story: StoryRecord): Promise<void> {
-  const storyPath = ensureStoryPath(story.epic_id, story.id)
+export async function patchStoryMetadata(story: StoryRecord, epicSlug?: string): Promise<void> {
+  const storyPath = ensureStoryPath(story.epic_id, story.id, epicSlug, story.slug)
   await patchFrontMatterLine(
     storyPath,
     /> \*\*Estado actual:\*\* `[^`]+`/m,
@@ -345,7 +361,7 @@ export async function patchStoryMetadata(story: StoryRecord): Promise<void> {
 }
 
 export async function patchEpicMetadata(epic: EpicRecord): Promise<void> {
-  const epicPath = ensureEpicPath(epic.id)
+  const epicPath = ensureEpicPath(epic.id, epic.slug)
   await patchFrontMatterLine(
     epicPath,
     /> Versión: 1\.0\.0 · Estado actual: `[^`]+`/m,
@@ -375,6 +391,7 @@ export async function syncBusinessArtifacts(config: ProjectConfig, model: Busine
   await fs.writeFile(progressPath, renderProgressMarkdown(config, model, existingProgress), 'utf-8')
   await fs.writeJson(progressJsonPath, {
     layer: 'business',
+    summary: progress.summary,
     stories: progress.stories,
     epics: progress.epics,
     deploys: 0,

@@ -3,13 +3,39 @@ import fs from 'fs-extra'
 import path from 'path'
 import { loadProjectConfig } from './shared/config'
 import { createStateAdapter } from '../adapters/state/adapter'
-import { ensureCanonicalFiles, getBusinessProgress, loadBusinessModel } from './shared/canonical'
+import { ensureCanonicalFiles, getBusinessProgress, loadBusinessModel, readEngineEvents } from './shared/canonical'
 import { syncBusinessArtifacts } from './shared/business-artifacts'
 
 interface ProgressData {
   layer: string
-  stories: { total: number; completed: number; in_progress: number; draft: number }
-  epics: { total: number; active: number; completed: number }
+  summary?: {
+    progress_pct: number
+    blocked_pct: number
+    pivoted_pct: number
+    wip: number
+    total_epics: number
+    total_stories: number
+    active_stories: number
+    completed_stories: number
+  }
+  stories: {
+    total?: number
+    active?: number
+    completed: number
+    blocked?: number
+    wip?: number
+    pivoted?: number
+    archived?: number
+    by_status?: Record<string, number>
+  }
+  epics?: {
+    total: number
+    active: number
+    completed: number
+    blocked?: number
+    pivoted?: number
+    archived?: number
+  }
   deploys: number
   incidents: number
   pivots: number
@@ -17,28 +43,37 @@ interface ProgressData {
 }
 
 async function readProgressJson(layer: string): Promise<ProgressData | null> {
-  const p = path.join(process.cwd(), `.${layer}`, 'progress.json')
-  if (!await fs.pathExists(p)) return null
-  return fs.readJson(p)
+  const progressPath = path.join(process.cwd(), `.${layer}`, 'progress.json')
+  if (!await fs.pathExists(progressPath)) return null
+  return fs.readJson(progressPath)
 }
 
 async function updateProgressJson(layer: string, data: ProgressData): Promise<void> {
-  const p = path.join(process.cwd(), `.${layer}`, 'progress.json')
+  const progressPath = path.join(process.cwd(), `.${layer}`, 'progress.json')
   data.last_updated = new Date().toISOString().split('T')[0]
-  await fs.writeJson(p, data, { spaces: 2 })
+  await fs.writeJson(progressPath, data, { spaces: 2 })
 }
 
 async function updateProgressMd(layer: string, date: string): Promise<void> {
-  const p = path.join(process.cwd(), `.${layer}`, 'progress.md')
-  if (!await fs.pathExists(p)) return
+  const progressPath = path.join(process.cwd(), `.${layer}`, 'progress.md')
+  if (!await fs.pathExists(progressPath)) return
 
-  let content = await fs.readFile(p, 'utf-8')
+  let content = await fs.readFile(progressPath, 'utf-8')
   content = content.replace(/ultima_actualizacion: .*/m, `ultima_actualizacion: ${date}`)
-  await fs.writeFile(p, content, 'utf-8')
+  await fs.writeFile(progressPath, content, 'utf-8')
+}
+
+function countEditsForToday(events: Awaited<ReturnType<typeof readEngineEvents>>): number {
+  const today = new Date().toISOString().split('T')[0]
+  return events.filter((event) => {
+    if (event.layer !== 'business') return false
+    if (!event.type.endsWith('.updated')) return false
+    return event.created_at.startsWith(today)
+  }).length
 }
 
 export async function statusCommand(): Promise<void> {
-  console.log(chalk.bold('\n📊 Wodlie Status — Actualizando estado del proyecto\n'))
+  console.log(chalk.bold('\nWodlie Status — Actualizando estado del proyecto\n'))
 
   let config
   try {
@@ -56,14 +91,16 @@ export async function statusCommand(): Promise<void> {
   const businessModel = await loadBusinessModel()
   await syncBusinessArtifacts(config, businessModel)
   const businessProgress = getBusinessProgress(businessModel)
+  const events = await readEngineEvents()
 
-  // Leer progress de cada capa
   const progressData: Record<string, ProgressData | null> = {}
   for (const layer of layers) {
     progressData[layer] = await readProgressJson(layer)
   }
+
   progressData.business = {
     layer: 'business',
+    summary: businessProgress.summary,
     stories: businessProgress.stories,
     epics: businessProgress.epics,
     deploys: 0,
@@ -72,17 +109,13 @@ export async function statusCommand(): Promise<void> {
     last_updated: businessModel.updated_at.split('T')[0],
   }
 
-  // Calcular métricas globales
-  const totalStories = layers.reduce((acc, l) => acc + (progressData[l]?.stories.total ?? 0), 0)
-  const completedStories = layers.reduce((acc, l) => acc + (progressData[l]?.stories.completed ?? 0), 0)
-  const inProgressStories = layers.reduce((acc, l) => acc + (progressData[l]?.stories.in_progress ?? 0), 0)
-  const totalPivots = layers.reduce((acc, l) => acc + (progressData[l]?.pivots ?? 0), 0)
-  const totalDeploys = layers.reduce((acc, l) => acc + (progressData[l]?.deploys ?? 0), 0)
-  const totalIncidents = layers.reduce((acc, l) => acc + (progressData[l]?.incidents ?? 0), 0)
+  const totalStories = businessProgress.summary.total_stories
+  const completedStories = businessProgress.summary.completed_stories
+  const activeStories = businessProgress.summary.active_stories
+  const totalPivots = layers.reduce((acc, layer) => acc + (progressData[layer]?.pivots ?? 0), 0)
+  const totalDeploys = layers.reduce((acc, layer) => acc + (progressData[layer]?.deploys ?? 0), 0)
+  const totalIncidents = layers.reduce((acc, layer) => acc + (progressData[layer]?.incidents ?? 0), 0)
 
-  const progressPct = totalStories > 0 ? Math.round((completedStories / totalStories) * 100) : 0
-
-  // Actualizar state.json
   const stateAdapter = await createStateAdapter()
   const existingState = await stateAdapter.read()
 
@@ -94,28 +127,23 @@ export async function statusCommand(): Promise<void> {
       history: [{ type: 'fixed', started: date, ended: null }],
     },
     health: {
-      new: {
-        total: totalStories,
-        completed: completedStories,
-        in_progress: inProgressStories,
-        progress: `${progressPct}%`,
+      summary: businessProgress.summary,
+      backlog: {
+        draft: businessProgress.stories.by_status.draft,
+        ready: businessProgress.stories.by_status.ready,
+        in_progress: businessProgress.stories.by_status['in-progress'],
+        in_review: businessProgress.stories.by_status['in-review'],
+        blocked: businessProgress.stories.by_status.blocked,
+        completed: businessProgress.stories.by_status.completed,
+        pivoted: businessProgress.stories.by_status.pivoted,
+        archived: businessProgress.stories.by_status.archived,
       },
-      updates: {
-        total: 0,
-        completed: 0,
-        in_progress: 0,
-        progress: '0%',
-      },
-      pivots: {
-        total: totalPivots,
-        completed: totalPivots,
-        in_progress: 0,
-        progress: totalPivots > 0 ? '100%' : '0%',
-      },
-      ui_ux: {
-        new: '0%',
-        updated: '0%',
-        pivoted: totalPivots > 0 ? '100%' : '0%',
+      risk: {
+        pivots: businessProgress.pivots,
+        blocked: businessProgress.stories.blocked,
+        archived: businessProgress.stories.archived,
+        active_edits: countEditsForToday(events),
+        wip: businessProgress.summary.wip,
       },
     },
     last_deploy: existingState?.last_deploy ?? null,
@@ -125,7 +153,6 @@ export async function statusCommand(): Promise<void> {
   await stateAdapter.write(newState)
   console.log(chalk.green('  ✓ .core/state.json actualizado'))
 
-  // Actualizar progress.md y progress.json de cada capa
   for (const layer of layers) {
     if (progressData[layer]) {
       await updateProgressJson(layer, progressData[layer]!)
@@ -134,13 +161,14 @@ export async function statusCommand(): Promise<void> {
     }
   }
 
-  // Mostrar resumen
-  console.log(chalk.bold(`\n📋 Resumen — ${config.project}\n`))
-  console.log(`  Historias:   ${completedStories}/${totalStories} completadas (${progressPct}%)`)
-  console.log(`  En progreso: ${inProgressStories}`)
+  console.log(chalk.bold(`\nResumen — ${config.project}\n`))
+  console.log(`  Historias:   ${completedStories}/${totalStories} completadas (${businessProgress.summary.progress_pct}%)`)
+  console.log(`  Activas:     ${activeStories}`)
+  console.log(`  Bloqueadas:  ${businessProgress.stories.blocked}`)
+  console.log(`  WIP:         ${businessProgress.summary.wip}`)
   console.log(`  Deploys:     ${totalDeploys}`)
   console.log(`  Incidentes:  ${totalIncidents}`)
-  console.log(`  Pivotes:     ${totalPivots}`)
+  console.log(`  Pivots:      ${totalPivots}`)
   console.log(`  Actualizado: ${date}`)
   console.log('')
 }

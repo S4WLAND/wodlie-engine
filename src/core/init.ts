@@ -217,6 +217,33 @@ async function updateCanonicalFiles(destDir: string, config: {
   }
 }
 
+async function writeProjectRootAgents(destDir: string): Promise<void> {
+  const rootAgentsPath = path.join(destDir, 'AGENTS.md')
+  const content = `# AGENTS.md
+
+## Contexto
+Proyecto gestionado con Wodlie Engine. El estado estructural del proyecto vive en los artefactos del engine y se opera por consola.
+
+## Flujo obligatorio
+- Usar \`wodlie-engine\` para abrir la shell interactiva
+- Crear y cambiar épicos, historias, pivots y estados desde la consola del engine
+- Ejecutar \`wodlie-engine status\` para sincronizar métricas y estado
+- Ejecutar \`wodlie-engine report:draft\` al cierre semanal
+
+## No editar manualmente
+- \`.wodlie-config/*.json\`
+- \`.wodlie-config/events.jsonl\`
+- métricas auto-generadas en \`.business/progress.*\`
+
+## Dónde leer según la tarea
+- Negocio: \`.business/AGENTS.md\`
+- Infra: \`.infra/AGENTS.md\`
+- Desarrollo: \`.dev/AGENTS.md\`
+- Orquestación del engine: \`.core/AGENTS.md\`
+`
+  await fs.writeFile(rootAgentsPath, content, 'utf-8')
+}
+
 export async function initCommand(proyecto: string, options: InitOptions): Promise<void> {
   console.log(chalk.bold(`\n🚀 Wodlie Engine — Inicializando proyecto: ${proyecto}\n`))
 
@@ -290,6 +317,7 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
 
   console.log(chalk.cyan('\n→ Copiando template...'))
   await copyTemplate(resolveTemplateDir(), destDir)
+  await writeProjectRootAgents(destDir)
 
   // Actualizar .wodlie-config/project.json con valores reales
   const projectConfigPath = path.join(destDir, '.wodlie-config', 'project.json')
@@ -358,8 +386,8 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
   console.log(chalk.bold('Próximos pasos:'))
   console.log(chalk.cyan(`  cd ${proyecto}`))
   console.log(chalk.cyan(`  cp .dev/src/backend-api/.env.example .dev/src/backend-api/.env.development`))
+  console.log(chalk.cyan(`  wodlie-engine`))
   console.log(chalk.cyan(`  wodlie-engine status`))
-  console.log(chalk.cyan(`  wodlie-engine health`))
   console.log('')
   console.log(chalk.bold('Selección aplicada:'))
   console.log(`  type=${resolvedOptions.type} · size=${resolvedOptions.size} · stack=${resolvedOptions.stack} · infra=${resolvedOptions.infra}`)

@@ -1,6 +1,4 @@
 import chalk from 'chalk'
-import fs from 'fs-extra'
-import path from 'path'
 import { loadProjectConfig } from './shared/config'
 import { createStateAdapter } from '../adapters/state/adapter'
 
@@ -28,42 +26,39 @@ export async function healthCommand(): Promise<void> {
     return
   }
 
-  const h = state.health
-  const newPct = h.new.total > 0 ? Math.round((h.new.completed / h.new.total) * 100) : 0
-  const updatesPct = h.updates.total > 0 ? Math.round((h.updates.completed / h.updates.total) * 100) : 0
+  const summary = state.health.summary
+  const backlog = state.health.backlog
+  const risk = state.health.risk
 
-  console.log(chalk.bold(`\n🏥 Health — ${config.project}\n`))
-  console.log(`  Historias nuevas    ${bar(newPct)}  (${h.new.completed}/${h.new.total})`)
-  console.log(`  Actualizaciones     ${bar(updatesPct)}  (${h.updates.completed}/${h.updates.total})`)
+  console.log(chalk.bold(`\nHealth — ${config.project}\n`))
+  console.log(chalk.bold('  Resumen'))
+  console.log(`  Avance global      ${bar(summary.progress_pct)}  (${summary.completed_stories}/${summary.total_stories})`)
+  console.log(`  Bloqueadas activas ${bar(summary.blocked_pct)}  (${risk.blocked}/${summary.active_stories})`)
+  console.log(`  Pivotadas total    ${bar(summary.pivoted_pct)}  (${risk.pivots}/${summary.total_stories || 0})`)
   console.log('')
 
-  const layers = ['business', 'infra', 'dev']
-  console.log(chalk.bold('  Capas:'))
-  for (const layer of layers) {
-    const p = path.join(process.cwd(), `.${layer}`, 'progress.json')
-    if (await fs.pathExists(p)) {
-      const data = await fs.readJson(p)
-      const pct = data.stories.total > 0
-        ? Math.round((data.stories.completed / data.stories.total) * 100)
-        : 0
-      const icon = pct === 100 ? '✅' : pct > 0 ? '🔄' : '⏳'
-      console.log(`  ${icon} .${layer.padEnd(10)} ${bar(pct, 15)}`)
-    }
-  }
-
+  console.log(chalk.bold('  Negocio'))
+  console.log(`  Épicos totales:    ${summary.total_epics}`)
+  console.log(`  Historias activas: ${summary.active_stories}`)
+  console.log(`  WIP actual:        ${summary.wip}`)
+  console.log(`  draft / ready:     ${backlog.draft} / ${backlog.ready}`)
+  console.log(`  progress / review: ${backlog.in_progress} / ${backlog.in_review}`)
+  console.log(`  completed:         ${backlog.completed}`)
+  console.log(`  archived:          ${backlog.archived}`)
   console.log('')
-  if (state.last_deploy) {
-    console.log(`  Último deploy:     ${chalk.cyan(state.last_deploy)}`)
-  }
-  if (state.last_incident) {
-    console.log(`  Último incidente:  ${chalk.red(state.last_incident)}`)
-  }
 
-  if (h.pivots.total > 0) {
-    console.log(chalk.yellow(`\n  ⚠ ${h.pivots.total} pivot(s) registrados. Revisar .business/changelog.md`))
+  console.log(chalk.bold('  Riesgo'))
+  console.log(`  Bloqueadas:        ${risk.blocked}`)
+  console.log(`  Pivots:            ${risk.pivots}`)
+  console.log(`  Ediciones hoy:     ${risk.active_edits}`)
+  if (state.last_deploy) console.log(`  Último deploy:     ${chalk.cyan(state.last_deploy)}`)
+  if (state.last_incident) console.log(`  Último incidente:  ${chalk.red(state.last_incident)}`)
+
+  if (risk.blocked > 0) {
+    console.log(chalk.yellow('\n  ⚠ Hay historias bloqueadas. Revisar backlog y dependencias.'))
   }
-  if (h.new.in_progress > 5) {
-    console.log(chalk.yellow(`\n  ⚠ ${h.new.in_progress} historias en progreso simultáneamente. Considerar reducir WIP.`))
+  if (summary.wip > 5) {
+    console.log(chalk.yellow('\n  ⚠ WIP alto. Considerar reducir trabajo simultáneo.'))
   }
 
   console.log('')
