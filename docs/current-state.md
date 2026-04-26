@@ -13,7 +13,12 @@
 
 - `init`
 - `business:epic:create`
+- `business:epic:list`
+- `business:epic:edit`
+- `business:epic:status`
 - `business:story:create`
+- `business:story:list`
+- `business:story:edit`
 - `business:story:status`
 - `business:pivot`
 - `business:sync`
@@ -54,7 +59,7 @@
 ### Interfaz agentica
 
 - no hay MCP server
-- no hay tool surface para agentes aparte de la CLI
+- la CLI ya tiene shell en árbol para operar negocio y reportes sin memorizar IDs
 
 ### Variabilidad del framework
 
@@ -78,6 +83,7 @@
 - negocio es la capa más conectada
 - infra y dev todavía no producen métricas derivadas profundas
 - changelog no se consolida automáticamente desde git
+- las métricas nuevas viven sobre estados `draft/ready/in-progress/in-review/blocked/completed/pivoted/archived`
 
 ## Qué faltaría para acercarse a la visión completa
 

@@ -5,16 +5,18 @@
 ### Añadido
 - modelo canónico mínimo en `.wodlie-config/`
 - `business.json`, `architecture.json` y `events.jsonl`
-- comandos `business:epic:create`, `business:story:create`, `business:story:status`, `business:pivot`
+- comandos `business:epic:list`, `business:epic:edit`, `business:epic:status`
+- comandos `business:story:list`, `business:story:edit`, `business:story:status`
+- creación de `AGENTS.md` en raíz de proyectos nuevos
 - comando `dev:story:complete`
 - comando `business:sync`
 - comando `reconcile`
 - derivación de `overview.md` y `.business/progress.*` desde el modelo canónico
 - borrador semanal alimentado por historias y eventos
 - smoke tests por script contra `dist/`
-- shell interactiva al ejecutar `wodlie` sin argumentos
-- paleta de acciones y slash commands para operar el engine sin memorizar flags
-- prompts guiados para épicos, historias, estados, reportes y utilidades frecuentes
+- shell interactiva en árbol al ejecutar `wodlie-engine` sin argumentos
+- browse con búsqueda por ID, título y slug para épicos e historias
+- serialización automática e inmutable para épicos (`EP-XXX`), historias (`US-XXX`) y pivots (`PV-XXX`)
 - `AGENTS.md` en raíz con reglas de desarrollo, documentación y convención de commits
 
 ### Cambiado
@@ -25,6 +27,8 @@
 - `init` ahora pregunta también por `type`, `size`, `stack` e `infra`
 - `init` ahora recorta la generación del template según infraestructura, tamaño, perfil y capabilities seleccionadas
 - el binario y nombre visible de la CLI ahora es `wodlie-engine`
+- negocio ahora usa estados normalizados `draft/ready/in-progress/in-review/blocked/completed/pivoted/archived`
+- `status`, `health`, `overview.md` y `progress.*` ahora usan métricas compatibles con el nuevo workflow de negocio
 
 ### Aclarado
 - solo `node-fastify` está implementado

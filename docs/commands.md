@@ -14,9 +14,9 @@ Estados usados:
 Estado: `implemented`
 
 Abre una shell interactiva:
-- ` / ` abre la paleta de comandos
-- permite ejecutar acciones frecuentes sin memorizar flags
-- guía prompts para init, épicos, historias, estados, reportes y utilidades operativas
+- menú principal en árbol: `Business`, `Reports`, `Project`
+- browse con búsqueda por ID, título o slug para épicos e historias
+- creación, edición, cambios de estado, pivots y archive sin escribir IDs manuales
 
 ## Inicialización
 
@@ -78,28 +78,66 @@ No hace hoy:
 
 ## Negocio canónico
 
-### `wodlie-engine business:epic:create <id> <titulo>`
+### `wodlie-engine business:epic:create <titulo>`
 
 Estado: `implemented`
 
-Crea un épico canónico en `.wodlie-config/business.json` y genera su archivo estándar.
+Crea un épico canónico en `.wodlie-config/business.json`, genera su archivo estándar y asigna un ID único `EP-XXX`.
 
 ```bash
-wodlie-engine business:epic:create EP-001 "Onboarding cliente"
+wodlie-engine business:epic:create "Onboarding cliente"
 ```
 
-### `wodlie-engine business:story:create <epicId> <id> <titulo>`
+### `wodlie-engine business:epic:list`
 
 Estado: `implemented`
 
-Crea una historia canónica, genera su archivo estándar y sincroniza overview/progress.
+Lista los épicos canónicos.
+
+### `wodlie-engine business:epic:edit <epicId>`
+
+Estado: `implemented`
+
+Edita título y descripción de un épico existente.
+
+### `wodlie-engine business:epic:status <epicId> <estado>`
+
+Estado: `implemented`
+
+Cambia el estado de un épico.
+
+Estados soportados:
+- `draft`
+- `active`
+- `blocked`
+- `completed`
+- `pivoted`
+- `archived`
+
+### `wodlie-engine business:story:create <epicId> <titulo>`
+
+Estado: `implemented`
+
+Crea una historia canónica, genera su archivo estándar, sincroniza overview/progress y asigna un ID único `US-XXX`.
 
 ```bash
-wodlie-engine business:story:create EP-001 US-001 "Registrar brief" \
+wodlie-engine business:story:create EP-001 "Registrar brief" \
   --as operador \
   --want "capturar el brief" \
   --so-that "el proyecto arranque con contexto"
 ```
+
+### `wodlie-engine business:story:list`
+
+Estado: `implemented`
+
+Lista historias canónicas.
+
+### `wodlie-engine business:story:edit <storyId>`
+
+Estado: `implemented`
+
+Edita título, historia de usuario, prioridad y asignación.
 
 ### `wodlie-engine business:story:status <storyId> <estado>`
 
@@ -108,9 +146,19 @@ Estado: `implemented`
 Actualiza el estado canónico de una historia.
 
 ```bash
-wodlie-engine business:story:status US-001 en-desarrollo
-wodlie-engine business:story:status US-001 completado
+wodlie-engine business:story:status US-001 in-progress
+wodlie-engine business:story:status US-001 completed
 ```
+
+Estados soportados:
+- `draft`
+- `ready`
+- `in-progress`
+- `blocked`
+- `in-review`
+- `completed`
+- `pivoted`
+- `archived`
 
 ### `wodlie-engine business:pivot <targetId>`
 
@@ -178,10 +226,11 @@ wodlie-engine health
 ```
 
 **Muestra:**
-- % completado por capa
-- Historias: new / updates / pivots
-- Último deploy y último incidente
-- Alertas si hay dependencias bloqueadas
+- avance global
+- backlog por estado
+- bloqueadas, pivots y WIP
+- último deploy y último incidente
+- alertas por riesgo operativo
 
 ---
 

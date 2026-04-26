@@ -1,6 +1,6 @@
 # US-001 — [Nombre descriptivo de la historia]
 > **Épico:** EP-001 · **Versión:** 1.0.0
-> **Estado:** `draft` | `activo` | `en-desarrollo` | `en-prueba` | `completado` | `pivotado`
+> **Estado:** `draft` | `ready` | `in-progress` | `blocked` | `in-review` | `completed` | `pivoted` | `archived`
 > **Creado:** {{DATE}} · **Última actualización:** {{DATE}}
 
 ---

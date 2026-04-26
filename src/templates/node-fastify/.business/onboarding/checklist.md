@@ -22,17 +22,17 @@
 - [ ] Manual de marca (si existe)
 
 ## Configuración inicial del proyecto
-- [ ] `wodlie init` ejecutado con opciones correctas
+- [ ] `wodlie-engine init` ejecutado con opciones correctas
 - [ ] Git inicializado y primer commit realizado
 - [ ] Variables de entorno completadas en `.env.development`
-- [ ] `wodlie status` sin errores
-- [ ] `wodlie health` confirmado
+- [ ] `wodlie-engine status` sin errores
+- [ ] `wodlie-engine health` confirmado
 
 ## Infraestructura (si aplica)
 - [ ] VPS contratado (o hosting / cloud)
 - [ ] Dominio apuntando al servidor
 - [ ] SSL configurado
-- [ ] `wodlie ssh:verify` exitoso
+- [ ] `wodlie-engine ssh:verify` exitoso
 
 ## Cierre del onboarding
 - [ ] Reunión de kickoff realizada

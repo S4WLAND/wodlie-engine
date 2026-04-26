@@ -28,8 +28,9 @@ wodlie-engine
 ```
 
 Dentro de la shell:
-- escribir `/` abre la paleta de comandos
-- escribir `/init` arranca la creación guiada
+- `Project > Inicializar proyecto nuevo`
+- `Business > Epics` y `Business > Stories`
+- `Reports` para reportes semanales
 
 También puedes seguir usando modo directo:
 
@@ -80,7 +81,7 @@ my-project/
 ```bash
 cd my-project
 wodlie-engine
-# luego usar /epic y /story
+# luego usar Business > Epics y Business > Stories
 ```
 
 ---

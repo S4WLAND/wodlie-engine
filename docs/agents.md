@@ -36,7 +36,10 @@
 ## Comandos que la IA debería priorizar
 
 - `business:epic:create`
+- `business:epic:edit`
+- `business:epic:status`
 - `business:story:create`
+- `business:story:edit`
 - `business:story:status`
 - `business:pivot`
 - `business:sync`

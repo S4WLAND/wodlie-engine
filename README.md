@@ -47,10 +47,11 @@ npm run test:run
 wodlie-engine
 ```
 
-La shell abre una paleta de acciones en terminal:
-- escribir `/` muestra el listado de comandos
-- escribir `/init` arranca la creación guiada del proyecto
-- escribir `/story`, `/epic`, `/status` o `/report-draft` ejecuta acciones sin memorizar flags
+La shell abre una consola en árbol:
+- `Business > Epics` para crear, buscar, editar, pivotar y archivar épicos
+- `Business > Stories` para crear, buscar, editar, cambiar estado y completar historias
+- `Reports` para reportes semanales
+- `Project` para init, status y health
 
 ---
 
@@ -61,15 +62,15 @@ La shell abre una paleta de acciones en terminal:
 wodlie-engine
 
 # O crear nuevo proyecto en modo directo
-npm run dev -- init mi-proyecto
+wodlie-engine init mi-proyecto
 
 # Ver estado del proyecto
 cd mi-proyecto
 wodlie-engine status
 
-# Crear épico e historia canónicos
-wodlie-engine business:epic:create EP-001 "Onboarding"
-wodlie-engine business:story:create EP-001 US-001 "Registrar brief" --as operador --want "capturar el brief" --so-that "arrancar con contexto"
+# Crear épico e historia canónicos con serial autogenerado
+wodlie-engine business:epic:create "Onboarding"
+wodlie-engine business:story:create EP-001 "Registrar brief" --as operador --want "capturar el brief" --so-that "arrancar con contexto"
 
 # Marcar avance desde DEV
 wodlie-engine dev:story:complete US-001

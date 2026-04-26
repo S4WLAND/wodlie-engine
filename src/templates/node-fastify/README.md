@@ -14,10 +14,10 @@
 ## Comandos rápidos
 
 ```bash
-wodlie status          # ver estado del proyecto
-wodlie health          # ver salud del proyecto
-wodlie report:draft    # generar borrador de reporte semanal
-wodlie deploy --env staging --target all   # flujo guiado, no deploy automático
+wodlie-engine          # abrir consola interactiva
+wodlie-engine status   # ver estado del proyecto
+wodlie-engine health   # ver salud del proyecto
+wodlie-engine report:draft
 ```
 
 ## Stack

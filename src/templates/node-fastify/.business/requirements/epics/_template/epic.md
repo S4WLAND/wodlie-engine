@@ -1,5 +1,5 @@
 # EP-001 — [Nombre del Épico]
-> Versión: 1.0.0 · Estado: `draft` | `activo` | `completado` | `pausado`
+> Versión: 1.0.0 · Estado: `draft` | `active` | `blocked` | `completed` | `pivoted` | `archived`
 > Creado: {{DATE}} · Última actualización: {{DATE}}
 
 ---
@@ -42,7 +42,7 @@
 
 ## Criterio de Completitud
 
-- Todas las historias en estado `completado`
+- Todas las historias activas en estado `completed`
 - [condición adicional si aplica]
 
 ---
