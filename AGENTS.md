@@ -32,6 +32,12 @@ Actualiza `README.md` cuando el cambio:
 - afecta instalación, uso rápido o posicionamiento del proyecto
 - cambia el modo principal de operar el engine
 
+Actualiza el `AGENTS.md` raíz generado por `init` cuando el cambio:
+- modifica comandos del framework disponibles para proyectos cliente
+- cambia el flujo recomendado de uso del engine dentro de un proyecto
+- cambia reglas sobre qué artefactos del proyecto se editan por CLI y cuáles manualmente
+- cambia la estructura o navegación esperada entre `.business/`, `.infra/`, `.dev/` y `.core/`
+
 Actualiza `docs/commands.md` cuando el cambio:
 - modifica flags, prompts, salidas, estados o limitaciones reales de un comando
 
@@ -55,6 +61,7 @@ Si un cambio importante toca comportamiento del producto, no se considera comple
 - el código compile
 - el changelog esté actualizado
 - la documentación afectada refleje el nuevo estado real
+- el `AGENTS.md` raíz que genera `init` siga alineado con el framework actual
 
 No mezclar:
 - código nuevo con documentación vieja
