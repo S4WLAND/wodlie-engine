@@ -2,16 +2,29 @@
 
 ## Concepto
 
-Despliegue con Docker Compose sobre VPS propio o alquilado.
-Stack: Traefik (proxy reverso + SSL) + Postgres + API + Frontends.
+Infraestructura VPS documentada y operada manualmente por ahora.
+Esta capa deja una ficha técnica del servidor y un runbook base de despliegue.
+
+## Ficha del servidor
+
+| Campo | Valor |
+|---|---|
+| Proveedor | {{INFRA_PROVIDER}} |
+| Plan | {{INFRA_PLAN}} |
+| Región | {{INFRA_REGION}} |
+| Sistema operativo | {{INFRA_SERVER_OS}} |
+| CPU | {{INFRA_CPU}} |
+| RAM | {{INFRA_RAM}} |
+| Disco | {{INFRA_DISK}} |
+| SSH host | {{INFRA_SSH_HOST}} |
+| SSH user | {{INFRA_SSH_USER}} |
 
 ## Prerrequisitos
 
-- VPS con Ubuntu 22.04 LTS mínimo
-- 2 vCPU / 2GB RAM (small), 4 vCPU / 4GB RAM (medium)
-- Docker + Docker Compose instalados
+- VPS accesible por SSH
 - Dominio apuntando al IP del servidor
-- Acceso SSH configurado
+- Variables críticas identificadas
+- Estrategia de despliegue definida
 
 ## Diagrama de arquitectura
 
@@ -42,4 +55,7 @@ storage.{{DOMAIN}}   → MinIO (si está activo)
 - `checklist.md` — pasos de configuración
 - `secrets.md` — gestión de variables de entorno
 - `ci-cd.md` — configuración de deploy automático
-- `docker-compose/` — templates de compose
+
+## Notas operativas
+
+{{INFRA_NOTES}}

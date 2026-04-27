@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url'
 
 const rootDir = process.cwd()
 const businessModule = await import(pathToFileURL(path.join(rootDir, 'dist', 'core', 'business.js')).href)
+const infraModule = await import(pathToFileURL(path.join(rootDir, 'dist', 'core', 'infra.js')).href)
 const reportModule = await import(pathToFileURL(path.join(rootDir, 'dist', 'core', 'report.js')).href)
 
 const {
@@ -13,6 +14,7 @@ const {
   businessStoryCreateCommand,
   devStoryCompleteCommand,
 } = businessModule
+const { infraSyncArtifacts } = infraModule
 const { reportDraftCommand } = reportModule
 
 function getWeekId(date = new Date()) {
@@ -40,6 +42,18 @@ async function seedProject(tempDir) {
     },
     hosting_type: 'vps',
     capabilities: [],
+    infra_details: {
+      provider: 'Hostinger',
+      plan: 'VPS 2',
+      region: 'us-east',
+      server_os: 'Ubuntu 22.04',
+      cpu: '2 vCPU',
+      ram: '4 GB',
+      disk: '80 GB',
+      ssh_host: '127.0.0.1',
+      ssh_user: 'deploy',
+      notes: 'Servidor inicial',
+    },
     stack: 'node-fastify',
     apps: {
       backend: 'backend-api',
@@ -109,6 +123,18 @@ async function testReportDraft() {
   })
 }
 
+async function testInfraSync() {
+  await withTempProject(async (tempDir) => {
+    const projectConfig = await fs.readJson(path.join(tempDir, '.wodlie-config', 'project.json'))
+    await infraSyncArtifacts(projectConfig)
+
+    const vpsReadme = await fs.readFile(path.join(tempDir, '.infra', 'vps', 'README.md'), 'utf-8')
+    assert.match(vpsReadme, /Hostinger/)
+    assert.match(vpsReadme, /2 vCPU/)
+  })
+}
+
 await testBusinessFlow()
 await testReportDraft()
+await testInfraSync()
 console.log('Tests passed')

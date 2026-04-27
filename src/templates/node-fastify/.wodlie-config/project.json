@@ -13,6 +13,18 @@
   },
   "hosting_type": "{{INFRA_TYPE}}",
   "capabilities": [],
+  "infra_details": {
+    "provider": "{{INFRA_PROVIDER}}",
+    "plan": "{{INFRA_PLAN}}",
+    "region": "{{INFRA_REGION}}",
+    "server_os": "{{INFRA_SERVER_OS}}",
+    "cpu": "{{INFRA_CPU}}",
+    "ram": "{{INFRA_RAM}}",
+    "disk": "{{INFRA_DISK}}",
+    "ssh_host": "{{INFRA_SSH_HOST}}",
+    "ssh_user": "{{INFRA_SSH_USER}}",
+    "notes": "{{INFRA_NOTES}}"
+  },
   "stack": "node-fastify",
   "apps": {
     "backend": "backend-api",

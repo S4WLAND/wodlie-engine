@@ -3,7 +3,7 @@
 ## Concepto
 
 Esta capa gestiona toda la infraestructura del proyecto: VPS, hosting, cloud.
-No contiene código ejecutable propio. Contiene documentación, templates y checklists accionables.
+No contiene código ejecutable propio. Contiene documentación, metadatos y checklists accionables.
 
 ## Diagrama general
 
@@ -29,10 +29,10 @@ Internet
 | Hosting compartido | Proyectos simples, sin Docker | `hosting/` |
 | Cloud (AWS/GCP) | Proyectos enterprise con alta escala | `cloud/` |
 
-## Entornos
+## Entornos de referencia
 
 ```
-development  → local con Docker Compose
+development  → local
 staging      → VPS / cloud con rama dev
 production   → VPS / cloud con rama main
 ```

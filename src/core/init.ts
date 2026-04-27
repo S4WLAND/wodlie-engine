@@ -3,6 +3,7 @@ import fs from 'fs-extra'
 import path from 'path'
 import inquirer from 'inquirer'
 import { simpleGit } from 'simple-git'
+import { infraSyncArtifacts } from './infra'
 
 interface InitOptions {
   type: string
@@ -10,6 +11,19 @@ interface InitOptions {
   stack: string
   capabilities?: string
   infra: string
+}
+
+interface InfraAnswers {
+  provider: string
+  plan: string
+  region: string
+  serverOs: string
+  cpu: string
+  ram: string
+  disk: string
+  sshHost: string
+  sshUser: string
+  notes: string
 }
 
 function resolveTemplateDir(): string {
@@ -143,46 +157,7 @@ async function pruneTemplateBySelection(destDir: string, selection: {
     }
   }
 
-  if (selection.infra !== 'vps') {
-    return
-  }
-
-  const dockerComposeRoot = path.join(infraRoot, 'vps', 'docker-compose')
-  const capabilityDir = path.join(dockerComposeRoot, 'capabilities')
-  const sizeDir = path.join(dockerComposeRoot, 'sizes')
-  const profileDir = path.join(dockerComposeRoot, 'profiles')
-
-  if (await fs.pathExists(capabilityDir)) {
-    for (const item of await fs.readdir(capabilityDir)) {
-      const capabilityName = path.parse(item).name
-      if (!selection.capabilities.includes(capabilityName)) {
-        await fs.remove(path.join(capabilityDir, item))
-      }
-    }
-  }
-
-  if (await fs.pathExists(sizeDir)) {
-    for (const item of await fs.readdir(sizeDir)) {
-      const sizeName = path.parse(item).name
-      if (sizeName !== selection.size) {
-        await fs.remove(path.join(sizeDir, item))
-      }
-    }
-  }
-
-  if (await fs.pathExists(profileDir)) {
-    const selectedProfilePath = path.join(profileDir, `${selection.type}.yml`)
-    const hasSelectedProfile = await fs.pathExists(selectedProfilePath)
-
-    if (hasSelectedProfile) {
-      for (const item of await fs.readdir(profileDir)) {
-        const profileName = path.parse(item).name
-        if (profileName !== selection.type) {
-          await fs.remove(path.join(profileDir, item))
-        }
-      }
-    }
-  }
+  await fs.remove(path.join(infraRoot, 'vps', 'docker-compose'))
 }
 
 async function updateCanonicalFiles(destDir: string, config: {
@@ -298,6 +273,79 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     },
   ])
 
+  const infraAnswers = await inquirer.prompt<InfraAnswers>([
+    {
+      type: 'input',
+      name: 'provider',
+      message: 'Proveedor de infraestructura:',
+      default: resolvedOptions.infra === 'vps' ? 'Hostinger' : '',
+      filter: (value: string) => value.trim(),
+    },
+    {
+      type: 'input',
+      name: 'plan',
+      message: 'Plan o producto contratado:',
+      default: '',
+      filter: (value: string) => value.trim(),
+    },
+    {
+      type: 'input',
+      name: 'region',
+      message: 'Región / datacenter:',
+      default: '',
+      filter: (value: string) => value.trim(),
+    },
+    {
+      type: 'input',
+      name: 'serverOs',
+      message: 'Sistema operativo del servidor:',
+      default: resolvedOptions.infra === 'vps' ? 'Ubuntu 22.04' : '',
+      filter: (value: string) => value.trim(),
+    },
+    {
+      type: 'input',
+      name: 'cpu',
+      message: 'CPU / vCores:',
+      default: resolvedOptions.size === 'large' ? '4 vCPU' : resolvedOptions.size === 'medium' ? '2 vCPU' : '1 vCPU',
+      filter: (value: string) => value.trim(),
+    },
+    {
+      type: 'input',
+      name: 'ram',
+      message: 'RAM:',
+      default: resolvedOptions.size === 'large' ? '8 GB' : resolvedOptions.size === 'medium' ? '4 GB' : '2 GB',
+      filter: (value: string) => value.trim(),
+    },
+    {
+      type: 'input',
+      name: 'disk',
+      message: 'Disco / almacenamiento:',
+      default: '',
+      filter: (value: string) => value.trim(),
+    },
+    {
+      type: 'input',
+      name: 'sshHost',
+      message: 'SSH host o IP:',
+      default: '',
+      filter: (value: string) => value.trim(),
+    },
+    {
+      type: 'input',
+      name: 'sshUser',
+      message: 'SSH user:',
+      default: 'deploy',
+      filter: (value: string) => value.trim(),
+    },
+    {
+      type: 'input',
+      name: 'notes',
+      message: 'Notas libres de infraestructura:',
+      default: '',
+      filter: (value: string) => value.trim(),
+    },
+  ])
+
   const date = new Date().toISOString().split('T')[0]
   const caps: string[] = answers.capabilities
 
@@ -310,6 +358,16 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     PROJECT_TYPE: resolvedOptions.type,
     PROJECT_SIZE: resolvedOptions.size,
     INFRA_TYPE: resolvedOptions.infra,
+    INFRA_PROVIDER: infraAnswers.provider,
+    INFRA_PLAN: infraAnswers.plan,
+    INFRA_REGION: infraAnswers.region,
+    INFRA_SERVER_OS: infraAnswers.serverOs,
+    INFRA_CPU: infraAnswers.cpu,
+    INFRA_RAM: infraAnswers.ram,
+    INFRA_DISK: infraAnswers.disk,
+    INFRA_SSH_HOST: infraAnswers.sshHost,
+    INFRA_SSH_USER: infraAnswers.sshUser,
+    INFRA_NOTES: infraAnswers.notes,
     ENGINE_VERSION: '1.0.0',
     DOMAIN: answers.domain,
     EMAIL: answers.email,
@@ -331,8 +389,27 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     config.project_profile.size = resolvedOptions.size
     config.hosting_type = resolvedOptions.infra
     config.capabilities = caps
+    config.infra_details = {
+      provider: infraAnswers.provider,
+      plan: infraAnswers.plan,
+      region: infraAnswers.region,
+      server_os: infraAnswers.serverOs,
+      cpu: infraAnswers.cpu,
+      ram: infraAnswers.ram,
+      disk: infraAnswers.disk,
+      ssh_host: infraAnswers.sshHost,
+      ssh_user: infraAnswers.sshUser,
+      notes: infraAnswers.notes,
+    }
     await fs.writeJson(projectConfigPath, config, { spaces: 2 })
     await updateCanonicalFiles(destDir, config, new Date().toISOString())
+    const previousCwd = process.cwd()
+    process.chdir(destDir)
+    try {
+      await infraSyncArtifacts(config)
+    } finally {
+      process.chdir(previousCwd)
+    }
   }
 
   // Actualizar .core/state.json
@@ -395,9 +472,6 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
 
   if (caps.length > 0) {
     console.log(chalk.bold(`Capabilities activadas: ${caps.join(', ')}`))
-    if (resolvedOptions.infra === 'vps') {
-      console.log(chalk.dim(`  Se conservaron solo los compose de capabilities seleccionados en .infra/vps/docker-compose/capabilities/`))
-    }
     console.log('')
   }
 }

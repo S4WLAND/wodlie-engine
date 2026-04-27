@@ -19,6 +19,18 @@ export interface ProjectConfig {
   }
   hosting_type: 'vps' | 'hosting' | 'cloud'
   capabilities: string[]
+  infra_details?: {
+    provider?: string
+    plan?: string
+    region?: string
+    server_os?: string
+    cpu?: string
+    ram?: string
+    disk?: string
+    ssh_host?: string
+    ssh_user?: string
+    notes?: string
+  }
   stack: string
   apps: {
     backend: string

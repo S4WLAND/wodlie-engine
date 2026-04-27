@@ -35,6 +35,20 @@ async function main(): Promise<void> {
       await healthCommand()
     })
 
+  program.command('infra:edit')
+    .description('Edita la ficha técnica de infraestructura y regenera la documentación')
+    .action(async () => {
+      const { infraEditCommand } = await import('../core/infra')
+      await infraEditCommand()
+    })
+
+  program.command('infra:sync')
+    .description('Regenera la documentación de infraestructura desde project.json')
+    .action(async () => {
+      const { infraSyncCommand } = await import('../core/infra')
+      await infraSyncCommand()
+    })
+
   program.command('business:epic:create <title>')
     .description('Crea un épico con ID autogenerado')
     .option('--description <text>')

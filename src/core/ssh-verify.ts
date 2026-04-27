@@ -10,8 +10,9 @@ const execAsync = promisify(exec)
 export async function sshVerifyCommand(): Promise<void> {
   console.log(chalk.bold('\n🔑 SSH Verify — Verificando conexión SSH\n'))
 
+  let config
   try {
-    await loadProjectConfig()
+    config = await loadProjectConfig()
   } catch {
     console.error(chalk.red('✗ No se encontró .wodlie-config/project.json'))
     process.exit(1)
@@ -28,17 +29,17 @@ export async function sshVerifyCommand(): Promise<void> {
   const envContent = await fs.readFile(envPath, 'utf-8')
   const sshHostMatch = envContent.match(/^SSH_HOST=(.+)$/m)
   const sshUserMatch = envContent.match(/^SSH_USER=(.+)$/m)
+  const host = sshHostMatch?.[1]?.trim() || config.infra_details?.ssh_host?.trim()
+  const user = sshUserMatch?.[1]?.trim() || config.infra_details?.ssh_user?.trim()
 
-  if (!sshHostMatch || !sshUserMatch) {
+  if (!host || !user) {
     console.log(chalk.yellow('⚠ SSH_HOST o SSH_USER no configurados en .env.development'))
     console.log(chalk.dim('  Agregar al .env.development:'))
     console.log(chalk.dim('  SSH_HOST=<ip-del-vps>'))
     console.log(chalk.dim('  SSH_USER=deploy'))
+    console.log(chalk.dim('  O cargarlos al crear el proyecto para que queden en .wodlie-config/project.json'))
     return
   }
-
-  const host = sshHostMatch[1].trim()
-  const user = sshUserMatch[1].trim()
 
   console.log(chalk.cyan(`→ Verificando: ${user}@${host}\n`))
 

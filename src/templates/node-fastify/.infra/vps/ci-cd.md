@@ -40,9 +40,7 @@ Agregar `SSH_PRIVATE_KEY` como variable de entorno segura en el sistema CI/CD.
 ssh deploy@{{DOMAIN}}
 cd /home/deploy/{{PROJECT_NAME}}
 git pull origin main
-docker compose pull
-docker compose up -d --force-recreate
-docker compose logs -f api
+# ejecutar aquí el proceso real definido para este proyecto
 ```
 
 ## Rollback manual
@@ -52,5 +50,5 @@ ssh deploy@{{DOMAIN}}
 cd /home/deploy/{{PROJECT_NAME}}
 git log --oneline -5           # ver commits recientes
 git checkout <commit-anterior>
-docker compose up -d --force-recreate
+# reejecutar aquí el proceso real definido para este proyecto
 ```

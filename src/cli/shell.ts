@@ -16,6 +16,7 @@ import {
   listStoriesCommand,
 } from '../core/business'
 import { healthCommand } from '../core/health'
+import { infraEditCommand, infraSyncCommand } from '../core/infra'
 import { initCommand } from '../core/init'
 import { reportCommand, reportDraftCommand } from '../core/report'
 import { statusCommand } from '../core/status'
@@ -23,6 +24,7 @@ import type { EpicRecord, StoryRecord } from '../core/shared/canonical'
 
 type MenuValue =
   | 'business'
+  | 'infra'
   | 'reports'
   | 'project'
   | 'back'
@@ -455,6 +457,29 @@ async function reportsMenu(): Promise<void> {
   }
 }
 
+async function infraMenu(): Promise<void> {
+  let active = true
+  while (active) {
+    const action = await selectMenu<MenuValue>('Infra', [
+      { name: 'Editar ficha de infraestructura', value: 'edit' },
+      { name: 'Regenerar documentación de infra', value: 'sync' },
+      { name: 'Volver', value: 'back' },
+    ])
+
+    switch (action) {
+      case 'edit':
+        await infraEditCommand()
+        break
+      case 'sync':
+        await infraSyncCommand()
+        break
+      case 'back':
+        active = false
+        break
+    }
+  }
+}
+
 async function projectMenu(): Promise<void> {
   let active = true
   while (active) {
@@ -497,6 +522,7 @@ export async function runInteractiveShell(): Promise<void> {
     try {
       const action = await selectMenu<MenuValue>('Menú principal', [
         { name: 'Business', value: 'business' },
+        { name: 'Infra', value: 'infra' },
         { name: 'Reports', value: 'reports' },
         { name: 'Project', value: 'project' },
         { name: 'Salir', value: 'exit' },
@@ -505,6 +531,9 @@ export async function runInteractiveShell(): Promise<void> {
       switch (action) {
         case 'business':
           await businessMenu()
+          break
+        case 'infra':
+          await infraMenu()
           break
         case 'reports':
           await reportsMenu()

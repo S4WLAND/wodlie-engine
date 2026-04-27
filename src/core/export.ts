@@ -87,7 +87,7 @@ Proyecto completado. Ver state/final-state.json para métricas finales.
 
 - Código fuente en .dev/src/
 - Documentación en .business/, .infra/
-- Infraestructura en .infra/vps/docker-compose/
+- Ficha y runbook de infraestructura en .infra/
 
 ## Notas de entrega
 

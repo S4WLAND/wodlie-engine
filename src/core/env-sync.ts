@@ -63,8 +63,9 @@ async function syncEnvFile(examplePath: string, targetPath: string, label: strin
 export async function envSyncCommand(): Promise<void> {
   console.log(chalk.bold('\n🔐 Env Sync — Sincronizando variables de entorno\n'))
 
+  let config
   try {
-    await loadProjectConfig()
+    config = await loadProjectConfig()
   } catch {
     console.error(chalk.red('✗ No se encontró .wodlie-config/project.json'))
     process.exit(1)
@@ -83,6 +84,22 @@ export async function envSyncCommand(): Promise<void> {
       path.join(cwd, app.target),
       app.label,
     )
+  }
+
+  const backendEnvPath = path.join(cwd, '.dev', 'src', 'backend-api', '.env.development')
+  if (await fs.pathExists(backendEnvPath)) {
+    const backendContent = await fs.readFile(backendEnvPath, 'utf-8')
+    let extra = ''
+    if (config.infra_details?.ssh_host && !backendContent.match(/^SSH_HOST=/m)) {
+      extra += `SSH_HOST=${config.infra_details.ssh_host}\n`
+    }
+    if (config.infra_details?.ssh_user && !backendContent.match(/^SSH_USER=/m)) {
+      extra += `SSH_USER=${config.infra_details.ssh_user}\n`
+    }
+    if (extra) {
+      await fs.appendFile(backendEnvPath, `\n# Infra importada desde project.json\n${extra}`)
+      console.log(chalk.green('  ✓ backend-api: SSH_HOST / SSH_USER importados desde infra del proyecto'))
+    }
   }
 
   console.log(chalk.bold('\n✓ Sync completado'))
