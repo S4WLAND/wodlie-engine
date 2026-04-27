@@ -197,24 +197,121 @@ async function writeProjectRootAgents(destDir: string): Promise<void> {
   const content = `# AGENTS.md
 
 ## Contexto
-Proyecto gestionado con Wodlie Engine. El estado estructural del proyecto vive en los artefactos del engine y se opera por consola.
+Proyecto gestionado con \`wodlie-engine\`.
+La fuente de verdad estructural del proyecto vive en los artefactos del engine y debe operarse por CLI.
 
-## Flujo obligatorio
-- Usar \`wodlie-engine\` para abrir la shell interactiva
-- Crear y cambiar épicos, historias, pivots y estados desde la consola del engine
-- Ejecutar \`wodlie-engine status\` para sincronizar métricas y estado
-- Ejecutar \`wodlie-engine report:draft\` al cierre semanal
+## Regla principal
+No editar manualmente los artefactos estructurados del engine si existe un comando para hacerlo.
+Primero usar \`wodlie-engine\`; después revisar la documentación o el código generado.
 
-## No editar manualmente
-- \`.wodlie-config/*.json\`
+## Cómo usar el framework
+
+### Entrada principal
+
+\`\`\`bash
+wodlie-engine
+\`\`\`
+
+Abre la consola interactiva en árbol.
+
+Menús principales:
+- \`Business\`
+- \`Infra\`
+- \`Reports\`
+- \`Project\`
+
+### Comandos más importantes
+
+\`\`\`bash
+wodlie-engine status
+wodlie-engine health
+wodlie-engine infra:edit
+wodlie-engine infra:sync
+wodlie-engine business:sync
+wodlie-engine report:draft
+wodlie-engine report
+wodlie-engine dev:story:complete US-001
+\`\`\`
+
+## Flujo correcto por área
+
+### Negocio
+Usar siempre la consola o la CLI para:
+- crear épicos
+- crear historias
+- editar épicos o historias
+- cambiar estados
+- registrar pivots
+
+No editar manualmente:
+- \`.wodlie-config/business.json\`
 - \`.wodlie-config/events.jsonl\`
-- métricas auto-generadas en \`.business/progress.*\`
+- \`.business/progress.*\`
+
+### Infra
+La infraestructura hoy es principalmente documental.
+
+Usar:
+- \`wodlie-engine infra:edit\` para actualizar proveedor, plan, CPU, RAM, SSH y notas
+- \`wodlie-engine infra:sync\` para regenerar \`.infra/\` desde \`.wodlie-config/project.json\`
+- \`wodlie-engine env:sync\` para completar \`.env.development\`
+- \`wodlie-engine ssh:verify\` para validar acceso SSH
+
+No editar manualmente si quieres conservar regeneración limpia:
+- \`.wodlie-config/project.json\` en la parte de \`infra_details\`
+
+Si personalizas manualmente \`.infra/\`, recuerda que \`infra:sync\` la puede regenerar.
+
+### Desarrollo
+El código vive en \`.dev/\`.
+Ahí se trabaja normalmente como proyecto de software.
+
+Usar el engine para reflejar progreso estructural:
+- marcar historias completadas
+- sincronizar estado
+- generar reportes
+
+## Archivos clave
+
+- \`.wodlie-config/project.json\`: configuración general del proyecto
+- \`.wodlie-config/business.json\`: modelo canónico de negocio
+- \`.wodlie-config/events.jsonl\`: historial estructurado de eventos
+- \`.business/\`: requerimientos, historias, reportes y métricas derivadas
+- \`.infra/\`: documentación y runbooks de infraestructura
+- \`.dev/\`: código fuente del proyecto
+- \`.core/\`: artefactos internos del engine
 
 ## Dónde leer según la tarea
 - Negocio: \`.business/AGENTS.md\`
 - Infra: \`.infra/AGENTS.md\`
 - Desarrollo: \`.dev/AGENTS.md\`
 - Orquestación del engine: \`.core/AGENTS.md\`
+
+## Secuencia recomendada de trabajo
+
+1. Abrir \`wodlie-engine\`
+2. Revisar o cargar negocio en \`Business\`
+3. Revisar o actualizar infraestructura en \`Infra\`
+4. Trabajar código en \`.dev/\`
+5. Marcar avance con \`wodlie-engine status\`
+6. Cerrar historias con \`wodlie-engine dev:story:complete <ID>\`
+7. Generar reporte con \`wodlie-engine report:draft\`
+
+## Reglas para la IA
+
+- No asumir que un archivo del engine debe editarse a mano.
+- Antes de modificar estructura, verificar si existe un comando del CLI.
+- Si cambia negocio, usar \`Business\`.
+- Si cambia la ficha de infraestructura, usar \`infra:edit\` o \`infra:sync\`.
+- Si un archivo de \`.infra/\` fue personalizado manualmente, avisar antes de regenerarlo.
+- Si el cambio afecta múltiples capas, revisar también \`.business/AGENTS.md\`, \`.infra/AGENTS.md\`, \`.dev/AGENTS.md\` y \`.core/AGENTS.md\`.
+
+## Cuándo pedir confirmación humana
+
+- antes de borrar carpetas del proyecto
+- antes de regenerar \`.infra/\` si hubo edición manual importante
+- antes de cambiar estados o historias sin contexto claro
+- antes de operaciones destructivas o de entrega
 `
   await fs.writeFile(rootAgentsPath, content, 'utf-8')
 }
