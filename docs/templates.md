@@ -45,11 +45,22 @@ wodlie-engine init my-project --type webapp --size medium --stack node
 | `{{ENGINE_VERSION}}` | Versión del engine |
 | `{{DOMAIN}}` | Dominio principal |
 | `{{EMAIL}}` | Email de SSL |
+| `{{INFRA_PROVIDER}}` | Proveedor de infraestructura |
+| `{{INFRA_PLAN}}` | Plan o producto contratado |
+| `{{INFRA_REGION}}` | Región o datacenter |
+| `{{INFRA_SERVER_OS}}` | Sistema operativo del servidor |
+| `{{INFRA_CPU}}` | CPU / vCores |
+| `{{INFRA_RAM}}` | RAM |
+| `{{INFRA_DISK}}` | Disco |
+| `{{INFRA_SSH_HOST}}` | Host SSH |
+| `{{INFRA_SSH_USER}}` | Usuario SSH |
+| `{{INFRA_NOTES}}` | Notas libres de infraestructura |
 
 ## Qué sí entrega hoy el template
 
 - Estructura de 4 capas
 - documentación base
+- documentación de infra enriquecida desde prompts libres
 - template de backend, frontend público y admin
 - workflows de ejemplo
 - `.wodlie-config/` con modelo mínimo del engine
@@ -58,6 +69,7 @@ wodlie-engine init my-project --type webapp --size medium --stack node
 
 - activación/desactivación real de módulos por capability
 - composición de template por `type`, `size` o `infra`
+- generación de `docker-compose` operativo
 - stacks alternativos reales
 - reconciliación estructural si cambia el perfil después de crear el proyecto
 

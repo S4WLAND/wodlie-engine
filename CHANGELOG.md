@@ -7,6 +7,7 @@
 - `business.json`, `architecture.json` y `events.jsonl`
 - comandos `business:epic:list`, `business:epic:edit`, `business:epic:status`
 - comandos `business:story:list`, `business:story:edit`, `business:story:status`
+- comandos `infra:edit` e `infra:sync`
 - creación de `AGENTS.md` en raíz de proyectos nuevos
 - comando `dev:story:complete`
 - comando `business:sync`
@@ -17,6 +18,7 @@
 - shell interactiva en árbol al ejecutar `wodlie-engine` sin argumentos
 - browse con búsqueda por ID, título y slug para épicos e historias
 - serialización automática e inmutable para épicos (`EP-XXX`), historias (`US-XXX`) y pivots (`PV-XXX`)
+- prompts libres de infraestructura para capturar proveedor, plan, CPU, RAM, disco, SSH y notas
 - `AGENTS.md` en raíz con reglas de desarrollo, documentación y convención de commits
 
 ### Cambiado
@@ -29,6 +31,10 @@
 - el binario y nombre visible de la CLI ahora es `wodlie-engine`
 - negocio ahora usa estados normalizados `draft/ready/in-progress/in-review/blocked/completed/pivoted/archived`
 - `status`, `health`, `overview.md` y `progress.*` ahora usan métricas compatibles con el nuevo workflow de negocio
+- `init` ahora persiste detalles libres de infraestructura en `.wodlie-config/project.json`
+- `env:sync` y `ssh:verify` ahora reutilizan `SSH_HOST` y `SSH_USER` cargados en la ficha de infra
+- la capa `infra` del proyecto generado ahora es documental; `init` elimina `docker-compose/` del proyecto creado
+- la shell interactiva ahora incluye menú `Infra` para editar ficha y regenerar documentación
 
 ### Aclarado
 - solo `node-fastify` está implementado

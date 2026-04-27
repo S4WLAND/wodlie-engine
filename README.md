@@ -50,6 +50,7 @@ wodlie-engine
 La shell abre una consola en árbol:
 - `Business > Epics` para crear, buscar, editar, pivotar y archivar épicos
 - `Business > Stories` para crear, buscar, editar, cambiar estado y completar historias
+- `Infra` para editar la ficha técnica y regenerar documentación de infraestructura
 - `Reports` para reportes semanales
 - `Project` para init, status y health
 
@@ -110,9 +111,9 @@ Durante `init`, el engine pregunta por:
 
 Y luego conserva solo la selección aplicada para:
 - carpeta de infraestructura (`vps`, `hosting` o `cloud`)
-- perfil de `docker-compose` si existe
+- perfil general del proyecto
 - tamaño seleccionado
-- compose de capabilities elegidas
+- documentación base y metadatos de infra
 
 ---
 

@@ -43,17 +43,17 @@ Además del modo con flags, `init` pregunta de forma interactiva por:
 - stack
 - infraestructura
 - datos operativos del proyecto
+- ficha libre de infraestructura
 - capabilities
 
 Qué recorta hoy según la selección:
 - `.infra/` conserva solo la carpeta elegida
-- `.infra/vps/docker-compose/sizes/` conserva solo el tamaño elegido
-- `.infra/vps/docker-compose/profiles/` conserva el perfil elegido si existe
-- `.infra/vps/docker-compose/capabilities/` conserva solo las capabilities elegidas
+- elimina `docker-compose/` del proyecto generado
+- deja documentación y metadatos de infra para edición manual
 
 Limitaciones actuales:
 - `--stack` acepta valores `node|python|go`, pero solo `node-fastify` está implementado.
-- todavía no compone el código fuente completo por `type`, `size`, `infra` o `capabilities`; hoy el recorte fuerte está concentrado en infra.
+- no genera despliegue operativo; la capa `infra` queda documental por ahora.
 
 ---
 
@@ -73,6 +73,42 @@ No hace hoy:
 - sincronización con VPS
 - manejo de secrets remotos
 - promoción de variables por entorno
+
+---
+
+## Infraestructura documental
+
+### `wodlie-engine infra:edit`
+
+Estado: `implemented`
+
+Abre prompts para editar la ficha de infraestructura de un proyecto ya creado y regenera la documentación de `.infra/`.
+
+Ejemplos de campos:
+- proveedor
+- plan
+- región
+- sistema operativo
+- CPU
+- RAM
+- disco
+- `SSH_HOST`
+- `SSH_USER`
+- notas
+
+### `wodlie-engine infra:sync`
+
+Estado: `implemented`
+
+Regenera la documentación de infraestructura desde `.wodlie-config/project.json` sin tocar negocio ni desarrollo.
+
+```bash
+wodlie-engine infra:sync
+```
+
+Uso recomendado:
+- después de cambiar `project.json` con `infra:edit`
+- cuando quieras reescribir limpio `README.md`, `checklist.md`, `secrets.md` o `ci-cd.md` de `.infra/`
 
 ---
 
