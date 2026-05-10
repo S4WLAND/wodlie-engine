@@ -1,46 +1,50 @@
 # Deploy — Estado actual
 
-El engine no despliega automáticamente hoy.
-Los comandos de deploy y ssh son utilidades guiadas.
+## Qué sí es real hoy
 
-## `wodlie-engine deploy`
+- Docker local `dev` y `test` en `.infra/`
+- `env:sync`, `env:check`, `infra:status` e `infra:ports`
+- `dev:shell` y `test:shell` por servicio para diagnóstico operativo
+- expose manual de `test` vía `.infra/env/test-expose.env`
+- helper de actualización robusta para `test` en `.infra/scripts/ci/update-test-service.ps1`
 
-Qué hace hoy:
+## Qué sigue siendo guiado
+
+### `wodlie-engine deploy`
+
+Estado: `guided`
+
+Hoy:
+
 - valida que estás en un proyecto Wodlie
 - muestra entorno, target y skips
-- imprime los pasos manuales recomendados
+- imprime pasos manuales recomendados
 
-Qué no hace:
+No hace:
+
 - push a git
-- invocar CI/CD
+- invocar CI/CD real
 - ejecutar SSH
 - desplegar contenedores
 - verificar healthchecks por sí mismo
 
-## `wodlie-engine ssh:verify`
+### `wodlie-engine ssh:verify`
 
-Qué hace hoy:
-- lee `SSH_HOST` y `SSH_USER` desde `.env.development`
-- intenta una conexión simple por SSH
+Estado: `implemented`
 
-Qué no hace:
-- genera claves
-- registra secrets
-- administra Dokploy
+Valida una conexión SSH básica con la ficha del proyecto.
+No administra secretos ni paneles remotos.
 
-## Qué queda documentado en el template
+## Relación con `.github/`
 
-El template `node-fastify` incluye documentación e índices base en `.infra/` para:
-- VPS
-- hosting
-- cloud
+El proyecto generado ya reserva `.github/workflows/`, pero no todos los proyectos arrancan con workflows activos.
+La convención es:
 
-Eso es documentación de referencia inicial, no automatización funcional del engine.
+- workflows en la raíz
+- scripts operativos en `.infra/scripts/ci/`
+- documentación viva en `.infra/`
 
-## Para una implementación completa faltaría
+## Regla honesta del bootstrap
 
-- surface real para registrar secretos remotos
-- integración CI/CD efectiva
-- deploy declarativo por perfil/capability
-- healthchecks post-deploy automáticos
-- eventos de deploy disparados por workflows y no manualmente
+- si los tres servicios están en presets runnable, el stack local queda preconfigurado
+- si algún servicio está en `neutral`, el proyecto trae el contrato y la documentación, pero no un deploy/stack operativo para ese servicio

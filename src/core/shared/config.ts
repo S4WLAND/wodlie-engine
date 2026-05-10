@@ -8,6 +8,8 @@ import path from 'path'
 export interface ProjectConfig {
   project: string
   active?: boolean
+  domain?: string
+  acme_email?: string
   contract?: {
     type: 'fixed' | 'subscription'
     history: Array<{ type: string; started: string; ended: string | null }>
@@ -36,6 +38,11 @@ export interface ProjectConfig {
     backend: string
     frontend_public: string
     frontend_admin: string
+  }
+  service_modes?: {
+    backend_api: 'neutral' | 'fastify'
+    frontend_public: 'neutral' | 'nextjs'
+    frontend_admin: 'neutral' | 'nextjs'
   }
 }
 

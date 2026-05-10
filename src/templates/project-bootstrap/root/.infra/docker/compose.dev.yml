@@ -1,0 +1,100 @@
+services:
+  backend-api:
+    image: ${DEV_NODE_IMAGE}
+    working_dir: /workspace
+    restart: unless-stopped
+    command: sh -c "${BACKEND_DEV_COMMAND}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../../.dev/src/backend-api/.env.development
+    environment:
+      NODE_ENV: ${BACKEND_RUNTIME_NODE_ENV}
+      PORT: ${BACKEND_CONTAINER_PORT}
+      HOST: ${BACKEND_RUNTIME_HOST}
+      LOG_LEVEL: ${BACKEND_RUNTIME_LOG_LEVEL}
+      JWT_SECRET: ${BACKEND_RUNTIME_JWT_SECRET}
+      DATABASE_URL: ${BACKEND_RUNTIME_DATABASE_URL}
+      DB_HOST: ${BACKEND_RUNTIME_DB_HOST}
+      DB_PORT: ${BACKEND_RUNTIME_DB_PORT}
+      DB_NAME: ${BACKEND_RUNTIME_DB_NAME}
+      DB_USER: ${BACKEND_RUNTIME_DB_USER}
+      DB_PASSWORD: ${BACKEND_RUNTIME_DB_PASSWORD}
+      REDIS_URL: ${BACKEND_RUNTIME_REDIS_URL}
+      MINIO_ENDPOINT: ${BACKEND_RUNTIME_MINIO_ENDPOINT}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${BACKEND_RUNTIME_MINIO_BUCKET}
+      MINIO_PUBLIC_URL: ${BACKEND_RUNTIME_MINIO_PUBLIC_URL}
+      ALLOWED_ORIGINS: ${BACKEND_RUNTIME_ALLOWED_ORIGINS}
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_CONTAINER_PORT}"
+    volumes:
+      - ../../.dev/src/backend-api:/workspace
+      - backend_api_node_modules:/workspace/node_modules
+
+  frontend-public:
+    image: ${DEV_NODE_IMAGE}
+    working_dir: /workspace
+    restart: unless-stopped
+    command: sh -c "${FRONTEND_PUBLIC_DEV_COMMAND}"
+    depends_on:
+      backend-api:
+        condition: service_started
+    env_file:
+      - ../../.dev/src/frontend-public/.env.development
+    environment:
+      NODE_ENV: ${FRONTEND_PUBLIC_RUNTIME_NODE_ENV}
+      PORT: ${FRONTEND_PUBLIC_CONTAINER_PORT}
+      HOSTNAME: ${FRONTEND_PUBLIC_RUNTIME_HOST}
+      NEXT_PUBLIC_APP_NAME: ${FRONTEND_PUBLIC_RUNTIME_APP_NAME}
+      NEXT_PUBLIC_API_URL: ${FRONTEND_PUBLIC_RUNTIME_API_URL}
+      NEXT_PUBLIC_APP_URL: ${FRONTEND_PUBLIC_RUNTIME_APP_URL}
+      NEXT_PUBLIC_COOKIE_DOMAIN: ${FRONTEND_PUBLIC_RUNTIME_COOKIE_DOMAIN}
+      NEXTAUTH_URL: ${FRONTEND_PUBLIC_RUNTIME_NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${FRONTEND_PUBLIC_RUNTIME_NEXTAUTH_SECRET}
+      MINIO_PUBLIC_URL: ${FRONTEND_PUBLIC_RUNTIME_MINIO_PUBLIC_URL}
+      PLAYWRIGHT_BASE_URL: ${FRONTEND_PUBLIC_RUNTIME_PLAYWRIGHT_BASE_URL}
+    ports:
+      - "${FRONTEND_PUBLIC_PORT}:${FRONTEND_PUBLIC_CONTAINER_PORT}"
+    volumes:
+      - ../../.dev/src/frontend-public:/workspace
+      - frontend_public_node_modules:/workspace/node_modules
+
+  frontend-admin:
+    image: ${DEV_NODE_IMAGE}
+    working_dir: /workspace
+    restart: unless-stopped
+    command: sh -c "${FRONTEND_ADMIN_DEV_COMMAND}"
+    depends_on:
+      backend-api:
+        condition: service_started
+    env_file:
+      - ../../.dev/src/frontend-admin/.env.development
+    environment:
+      NODE_ENV: ${FRONTEND_ADMIN_RUNTIME_NODE_ENV}
+      PORT: ${FRONTEND_ADMIN_CONTAINER_PORT}
+      HOSTNAME: ${FRONTEND_ADMIN_RUNTIME_HOST}
+      NEXT_PUBLIC_APP_NAME: ${FRONTEND_ADMIN_RUNTIME_APP_NAME}
+      NEXT_PUBLIC_API_URL: ${FRONTEND_ADMIN_RUNTIME_API_URL}
+      NEXT_PUBLIC_APP_URL: ${FRONTEND_ADMIN_RUNTIME_APP_URL}
+      NEXT_PUBLIC_COOKIE_DOMAIN: ${FRONTEND_ADMIN_RUNTIME_COOKIE_DOMAIN}
+      MINIO_PUBLIC_URL: ${FRONTEND_ADMIN_RUNTIME_MINIO_PUBLIC_URL}
+      NEXT_PUBLIC_REALTIME_ADAPTER: ${FRONTEND_ADMIN_RUNTIME_REALTIME_ADAPTER}
+      NEXT_PUBLIC_REALTIME_URL: ${FRONTEND_ADMIN_RUNTIME_REALTIME_URL}
+      NEXT_PUBLIC_POLLING_INTERVAL: ${FRONTEND_ADMIN_RUNTIME_POLLING_INTERVAL}
+      PLAYWRIGHT_BASE_URL: ${FRONTEND_ADMIN_RUNTIME_PLAYWRIGHT_BASE_URL}
+    ports:
+      - "${FRONTEND_ADMIN_PORT}:${FRONTEND_ADMIN_CONTAINER_PORT}"
+    volumes:
+      - ../../.dev/src/frontend-admin:/workspace
+      - frontend_admin_node_modules:/workspace/node_modules
+
+volumes:
+  backend_api_node_modules:
+    name: ${COMPOSE_VOLUME_PREFIX}_backend_api_node_modules
+  frontend_public_node_modules:
+    name: ${COMPOSE_VOLUME_PREFIX}_frontend_public_node_modules
+  frontend_admin_node_modules:
+    name: ${COMPOSE_VOLUME_PREFIX}_frontend_admin_node_modules

@@ -1,0 +1,12 @@
+event: on-incident
+description: Se ejecuta cuando se registra un incidente
+steps:
+  - layer: CORE
+    run: scripts/status.sh
+    description: Actualiza state.json con último incidente
+  - layer: INFRA
+    run: scripts/notify.sh "incidente registrado"
+    description: Notifica urgente al operador via ntfy
+  - layer: CORE
+    run: scripts/status.sh --changelog
+    description: Registra el incidente en changelog.md

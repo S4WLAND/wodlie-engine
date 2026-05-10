@@ -32,6 +32,8 @@ async function seedProject(tempDir) {
   await fs.writeJson(path.join(tempDir, '.wodlie-config', 'project.json'), {
     project: 'demo',
     active: true,
+    domain: 'demo.com',
+    acme_email: 'ops@demo.com',
     contract: {
       type: 'fixed',
       history: [{ type: 'fixed', started: '2026-04-24', ended: null }],
@@ -54,11 +56,16 @@ async function seedProject(tempDir) {
       ssh_user: 'deploy',
       notes: 'Servidor inicial',
     },
-    stack: 'node-fastify',
+    stack: 'node',
     apps: {
       backend: 'backend-api',
       frontend_public: 'frontend-public',
       frontend_admin: 'frontend-admin',
+    },
+    service_modes: {
+      backend_api: 'neutral',
+      frontend_public: 'neutral',
+      frontend_admin: 'neutral',
     },
   }, { spaces: 2 })
   await fs.writeJson(path.join(tempDir, '.business', 'changelog.json'), { changelog: [] }, { spaces: 2 })
@@ -128,9 +135,15 @@ async function testInfraSync() {
     const projectConfig = await fs.readJson(path.join(tempDir, '.wodlie-config', 'project.json'))
     await infraSyncArtifacts(projectConfig)
 
+    const infraReadme = await fs.readFile(path.join(tempDir, '.infra', 'README.md'), 'utf-8')
     const vpsReadme = await fs.readFile(path.join(tempDir, '.infra', 'vps', 'README.md'), 'utf-8')
+    const serviceOps = await fs.readFile(path.join(tempDir, '.infra', 'vps', 'service-ops.md'), 'utf-8')
+    assert.match(infraReadme, /COMPOSE_PROFILES=redis/)
+    assert.match(infraReadme, /backend-api/)
     assert.match(vpsReadme, /Hostinger/)
     assert.match(vpsReadme, /2 vCPU/)
+    assert.match(vpsReadme, /demo.com/)
+    assert.match(serviceOps, /Postgres, Redis o MinIO/)
   })
 }
 

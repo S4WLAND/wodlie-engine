@@ -2,85 +2,78 @@
 
 ## Estado actual
 
-- Solo existe un template implementado: `node-fastify`.
-- El build copia `src/templates/` a `dist/templates/`.
-- `init` usa ese asset empaquetado y reemplaza variables simples.
-- No existe todavía un sistema de composición avanzada por perfil/capability.
+El engine ya no usa un único template cerrado.
 
-## Template disponible
+Hoy `init` compone un bootstrap llamado `project-bootstrap` con:
 
-| Template | Stack | Estado |
-|---|---|---|
-| node-fastify | Node.js + Fastify + Next.js + PostgreSQL + Drizzle | implementado |
+- una raíz común
+- presets por servicio
+- reemplazo de variables
+- escritura final en `.wodlie-config/project.json`
 
-## Cómo funciona `wodlie-engine init`
+## Presets disponibles
 
-```
-wodlie-engine init my-project --type webapp --size medium --stack node
+| Servicio | Presets |
+|---|---|
+| `backend-api` | `neutral`, `fastify` |
+| `frontend-public` | `neutral`, `nextjs` |
+| `frontend-admin` | `neutral`, `nextjs` |
+
+## Cómo funciona `init`
+
+```text
+wodlie-engine init mi-proyecto
     ↓
-1. Copia dist/templates/node-fastify/ → my-project/
-2. Reemplaza variables en archivos:
-   {{PROJECT_NAME}} → my-project
-   {{PROJECT_TYPE}} → webapp
-   {{PROJECT_SIZE}} → medium
-   {{DATE}}         → fecha actual
-   {{OPERATOR}}     → respuesta del prompt
-3. Ajusta .wodlie-config/project.json con datos reales
-4. Inicializa business.json, architecture.json y events.jsonl
-5. Inicializa git con primer commit
+1. Copia dist/templates/project-bootstrap/root/ → mi-proyecto/
+2. Pregunta por metadatos, infra y modo de cada servicio
+3. Copia el preset elegido a .dev/src/<service>/
+4. Ajusta .wodlie-config/project.json con datos reales y service_modes
+5. Inicializa business.json, architecture.json y events.jsonl
+6. Regenera .infra/ documental desde project.json
+7. Inicializa git con primer commit
 ```
 
 ## Variables disponibles en templates
 
 | Variable | Descripción |
 |---|---|
-| `{{PROJECT_NAME}}` | Nombre del proyecto |
-| `{{PROJECT_TYPE}}` | webapp, platform, enterprise, iot |
-| `{{PROJECT_SIZE}}` | small, medium, large |
-| `{{DATE}}` | Fecha de creación (YYYY-MM-DD) |
-| `{{OPERATOR}}` | Nombre del operador |
-| `{{CONTRACT_TYPE}}` | fixed, subscription |
-| `{{INFRA_TYPE}}` | vps, hosting, cloud |
-| `{{CLIENT_NAME}}` | Nombre del cliente |
-| `{{ENGINE_VERSION}}` | Versión del engine |
-| `{{DOMAIN}}` | Dominio principal |
-| `{{EMAIL}}` | Email de SSL |
-| `{{INFRA_PROVIDER}}` | Proveedor de infraestructura |
-| `{{INFRA_PLAN}}` | Plan o producto contratado |
-| `{{INFRA_REGION}}` | Región o datacenter |
-| `{{INFRA_SERVER_OS}}` | Sistema operativo del servidor |
+| `{{PROJECT_NAME}}` | nombre/slug del proyecto |
+| `{{CLIENT_NAME}}` | nombre visible del cliente |
+| `{{PROJECT_TYPE}}` | `webapp`, `platform`, `enterprise`, `iot` |
+| `{{PROJECT_SIZE}}` | `small`, `medium`, `large` |
+| `{{PROJECT_STACK}}` | metadata base (`node`, `python`, `go`) |
+| `{{DATE}}` | fecha de creación |
+| `{{OPERATOR}}` | operador que inicializa |
+| `{{CONTRACT_TYPE}}` | `fixed` o `subscription` |
+| `{{INFRA_TYPE}}` | `vps`, `hosting`, `cloud` |
+| `{{INFRA_PROVIDER}}` | proveedor registrado |
+| `{{INFRA_PLAN}}` | plan o producto |
+| `{{INFRA_REGION}}` | región/datacenter |
+| `{{INFRA_SERVER_OS}}` | sistema operativo |
 | `{{INFRA_CPU}}` | CPU / vCores |
 | `{{INFRA_RAM}}` | RAM |
-| `{{INFRA_DISK}}` | Disco |
-| `{{INFRA_SSH_HOST}}` | Host SSH |
-| `{{INFRA_SSH_USER}}` | Usuario SSH |
-| `{{INFRA_NOTES}}` | Notas libres de infraestructura |
+| `{{INFRA_DISK}}` | disco |
+| `{{INFRA_SSH_HOST}}` | host SSH |
+| `{{INFRA_SSH_USER}}` | usuario SSH |
+| `{{INFRA_NOTES}}` | notas de infraestructura |
+| `{{DOMAIN}}` | dominio principal |
+| `{{EMAIL}}` | email para SSL |
+| `{{BACKEND_API_MODE}}` | `neutral` o `fastify` |
+| `{{FRONTEND_PUBLIC_MODE}}` | `neutral` o `nextjs` |
+| `{{FRONTEND_ADMIN_MODE}}` | `neutral` o `nextjs` |
 
-## Qué sí entrega hoy el template
+## Qué entrega hoy
 
-- Estructura de 4 capas
-- documentación base
-- documentación de infra enriquecida desde prompts libres
-- template de backend, frontend público y admin
-- workflows de ejemplo
-- `.wodlie-config/` con modelo mínimo del engine
+- estructura de 4 capas + `.github/`
+- `AGENTS.md` desde raíz hasta cada servicio
+- `development_guidelines.md` general
+- `.infra/` con Docker `dev/test`, env sync, perfiles opcionales y runbooks
+- servicios `neutral` documentados
+- presets runnable `fastify` y `nextjs`
 
 ## Qué no entrega hoy
 
-- activación/desactivación real de módulos por capability
-- composición de template por `type`, `size` o `infra`
-- generación de `docker-compose` operativo
-- stacks alternativos reales
-- reconciliación estructural si cambia el perfil después de crear el proyecto
-
-## Crear un template nuevo
-
-```bash
-# 1. Copiar node-fastify como base
-cp -r src/templates/node-fastify src/templates/python-fastapi
-
-# 2. Adaptar estructura, docs y .wodlie-config
-# 3. Actualizar init para resolver el nuevo stack
-# 4. Agregar smoke tests
-# 5. Documentar limitaciones reales
-```
+- composición posterior al `init` por comando dedicado
+- soporte runnable para stacks distintos de `fastify/nextjs`
+- CI/CD completa ya activada para todos los proyectos
+- reconciliación automática profunda si cambias la composición después de crear el proyecto

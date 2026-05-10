@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-05-10T01:57:47.001Z",
+  "services": {
+    "backend-api": {
+      "example_file": ".dev\\src\\backend-api\\.env.example",
+      "development_file": ".dev\\src\\backend-api\\.env.development",
+      "test_file": ".dev\\src\\backend-api\\.env.test",
+      "keys": [
+        "NODE_ENV",
+        "PORT",
+        "HOST",
+        "LOG_LEVEL",
+        "JWT_SECRET",
+        "DATABASE_URL",
+        "QUEUE_ADAPTER",
+        "REDIS_URL",
+        "CACHE_ADAPTER",
+        "MINIO_ENDPOINT",
+        "MINIO_ROOT_USER",
+        "MINIO_ROOT_PASSWORD",
+        "MINIO_BUCKET",
+        "MINIO_PUBLIC_URL",
+        "ALLOWED_ORIGINS"
+      ]
+    },
+    "frontend-public": {
+      "example_file": ".dev\\src\\frontend-public\\.env.example",
+      "development_file": ".dev\\src\\frontend-public\\.env.development",
+      "test_file": ".dev\\src\\frontend-public\\.env.test",
+      "keys": [
+        "NEXT_PUBLIC_APP_NAME",
+        "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_API_URL",
+        "NEXT_PUBLIC_COOKIE_DOMAIN",
+        "JWT_SECRET",
+        "NEXTAUTH_URL",
+        "NEXTAUTH_SECRET",
+        "MINIO_PUBLIC_URL",
+        "PLAYWRIGHT_BASE_URL"
+      ]
+    },
+    "frontend-admin": {
+      "example_file": ".dev\\src\\frontend-admin\\.env.example",
+      "development_file": ".dev\\src\\frontend-admin\\.env.development",
+      "test_file": ".dev\\src\\frontend-admin\\.env.test",
+      "keys": [
+        "NEXT_PUBLIC_APP_NAME",
+        "NEXT_PUBLIC_API_URL",
+        "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_COOKIE_DOMAIN",
+        "JWT_SECRET",
+        "MINIO_PUBLIC_URL",
+        "NEXT_PUBLIC_REALTIME_ADAPTER",
+        "NEXT_PUBLIC_REALTIME_URL",
+        "NEXT_PUBLIC_POLLING_INTERVAL",
+        "PLAYWRIGHT_BASE_URL"
+      ]
+    }
+  }
+}

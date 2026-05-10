@@ -26,20 +26,12 @@ interface InfraAnswers {
   notes: string
 }
 
-function resolveTemplateDir(): string {
-  const candidates = [
-    path.join(__dirname, '../templates/node-fastify'),
-    path.join(__dirname, '../../src/templates/node-fastify'),
-  ]
-
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return candidate
-    }
-  }
-
-  throw new Error(`No se encontró el template node-fastify. Rutas probadas: ${candidates.join(', ')}`)
+interface ServiceModeAnswers {
+  backend_api: 'neutral' | 'fastify'
+  frontend_public: 'neutral' | 'nextjs'
+  frontend_admin: 'neutral' | 'nextjs'
 }
+
 const PROJECT_TYPES = ['webapp', 'platform', 'enterprise', 'iot'] as const
 const PROJECT_SIZES = ['small', 'medium', 'large'] as const
 const PROJECT_STACKS = ['node', 'python', 'go'] as const
@@ -54,23 +46,40 @@ const CAPABILITY_CHOICES = [
 
 const VARIABLES: Record<string, string> = {}
 
+function resolveBootstrapDir(...segments: string[]): string {
+  const candidates = [
+    path.join(__dirname, '../templates/project-bootstrap', ...segments),
+    path.join(__dirname, '../../src/templates/project-bootstrap', ...segments),
+  ]
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate
+    }
+  }
+
+  throw new Error(`No se encontró el bootstrap project-bootstrap. Rutas probadas: ${candidates.join(', ')}`)
+}
+
 function replaceVars(content: string): string {
   return content.replace(/\{\{(\w+)\}\}/g, (_, key) => VARIABLES[key] ?? `{{${key}}}`)
 }
 
 async function processFile(src: string, dest: string): Promise<void> {
   const ext = path.extname(src)
-  const textExts = ['.ts', '.tsx', '.js', '.json', '.md', '.yml', '.yaml', '.sh', '.css', '.example', '.txt', '']
+  const textExts = ['.ts', '.tsx', '.js', '.mjs', '.json', '.md', '.yml', '.yaml', '.sh', '.css', '.example', '.txt', '']
 
   if (textExts.includes(ext) || path.basename(src).startsWith('.env')) {
     const content = await fs.readFile(src, 'utf-8')
     await fs.outputFile(dest, replaceVars(content))
-  } else {
-    await fs.copy(src, dest)
+    return
   }
+
+  await fs.copy(src, dest)
 }
 
 async function copyTemplate(srcDir: string, destDir: string): Promise<void> {
+  await fs.ensureDir(destDir)
   const entries = await fs.readdir(srcDir, { withFileTypes: true })
 
   for (const entry of entries) {
@@ -79,9 +88,10 @@ async function copyTemplate(srcDir: string, destDir: string): Promise<void> {
 
     if (entry.isDirectory()) {
       await copyTemplate(srcPath, destPath)
-    } else {
-      await processFile(srcPath, destPath)
+      continue
     }
+
+    await processFile(srcPath, destPath)
   }
 }
 
@@ -116,7 +126,7 @@ async function resolveInitOptions(options: InitOptions): Promise<InitOptions> {
     questions.push({
       type: 'list',
       name: 'stack',
-      message: 'Stack base:',
+      message: 'Stack base (metadata / compatibilidad):',
       choices: [...PROJECT_STACKS],
       default: options.stack,
     })
@@ -142,22 +152,53 @@ async function resolveInitOptions(options: InitOptions): Promise<InitOptions> {
   }
 }
 
-async function pruneTemplateBySelection(destDir: string, selection: {
-  type: string
-  size: string
-  infra: string
-  capabilities: string[]
-}): Promise<void> {
-  const infraRoot = path.join(destDir, '.infra')
-  const infraDirs = ['vps', 'hosting', 'cloud']
+async function resolveServiceModes(): Promise<ServiceModeAnswers> {
+  return inquirer.prompt<ServiceModeAnswers>([
+    {
+      type: 'list',
+      name: 'backend_api',
+      message: 'backend-api: modo inicial',
+      choices: [
+        { name: 'neutral — estructura vacía y documentada', value: 'neutral' },
+        { name: 'fastify — base runnable con arquitectura modular', value: 'fastify' },
+      ],
+      default: 'neutral',
+    },
+    {
+      type: 'list',
+      name: 'frontend_public',
+      message: 'frontend-public: modo inicial',
+      choices: [
+        { name: 'neutral — estructura vacía y documentada', value: 'neutral' },
+        { name: 'nextjs — base runnable con App Router', value: 'nextjs' },
+      ],
+      default: 'neutral',
+    },
+    {
+      type: 'list',
+      name: 'frontend_admin',
+      message: 'frontend-admin: modo inicial',
+      choices: [
+        { name: 'neutral — estructura vacía y documentada', value: 'neutral' },
+        { name: 'nextjs — base runnable con App Router', value: 'nextjs' },
+      ],
+      default: 'neutral',
+    },
+  ])
+}
 
-  for (const infraDir of infraDirs) {
-    if (infraDir !== selection.infra) {
-      await fs.remove(path.join(infraRoot, infraDir))
-    }
+async function copySelectedServicePresets(destDir: string, modes: ServiceModeAnswers): Promise<void> {
+  const services: Array<{ id: string; mode: string }> = [
+    { id: 'backend-api', mode: modes.backend_api },
+    { id: 'frontend-public', mode: modes.frontend_public },
+    { id: 'frontend-admin', mode: modes.frontend_admin },
+  ]
+
+  for (const service of services) {
+    const sourceDir = resolveBootstrapDir('services', service.id, service.mode)
+    const targetDir = path.join(destDir, '.dev', 'src', service.id)
+    await copyTemplate(sourceDir, targetDir)
   }
-
-  await fs.remove(path.join(infraRoot, 'vps', 'docker-compose'))
 }
 
 async function updateCanonicalFiles(destDir: string, config: {
@@ -167,6 +208,7 @@ async function updateCanonicalFiles(destDir: string, config: {
     frontend_public: string
     frontend_admin: string
   }
+  service_modes: ServiceModeAnswers
 }, dateIso: string): Promise<void> {
   const businessPath = path.join(destDir, '.wodlie-config', 'business.json')
   const architecturePath = path.join(destDir, '.wodlie-config', 'architecture.json')
@@ -183,6 +225,7 @@ async function updateCanonicalFiles(destDir: string, config: {
     architecture.updated_at = dateIso
     architecture.apps = config.apps
     architecture.capabilities = config.capabilities
+    architecture.service_modes = config.service_modes
     architecture.adapters.realtime = config.capabilities.includes('realtime') ? 'websocket' : 'polling'
     await fs.writeJson(architecturePath, architecture, { spaces: 2 })
   }
@@ -192,128 +235,10 @@ async function updateCanonicalFiles(destDir: string, config: {
   }
 }
 
-async function writeProjectRootAgents(destDir: string): Promise<void> {
-  const rootAgentsPath = path.join(destDir, 'AGENTS.md')
-  const content = `# AGENTS.md
-
-## Contexto
-Proyecto gestionado con \`wodlie-engine\`.
-La fuente de verdad estructural del proyecto vive en los artefactos del engine y debe operarse por CLI.
-
-## Regla principal
-No editar manualmente los artefactos estructurados del engine si existe un comando para hacerlo.
-Primero usar \`wodlie-engine\`; después revisar la documentación o el código generado.
-
-## Cómo usar el framework
-
-### Entrada principal
-
-\`\`\`bash
-wodlie-engine
-\`\`\`
-
-Abre la consola interactiva en árbol.
-
-Menús principales:
-- \`Business\`
-- \`Infra\`
-- \`Reports\`
-- \`Project\`
-
-### Comandos más importantes
-
-\`\`\`bash
-wodlie-engine status
-wodlie-engine health
-wodlie-engine infra:edit
-wodlie-engine infra:sync
-wodlie-engine business:sync
-wodlie-engine report:draft
-wodlie-engine report
-wodlie-engine dev:story:complete US-001
-\`\`\`
-
-## Flujo correcto por área
-
-### Negocio
-Usar siempre la consola o la CLI para:
-- crear épicos
-- crear historias
-- editar épicos o historias
-- cambiar estados
-- registrar pivots
-
-No editar manualmente:
-- \`.wodlie-config/business.json\`
-- \`.wodlie-config/events.jsonl\`
-- \`.business/progress.*\`
-
-### Infra
-La infraestructura hoy es principalmente documental.
-
-Usar:
-- \`wodlie-engine infra:edit\` para actualizar proveedor, plan, CPU, RAM, SSH y notas
-- \`wodlie-engine infra:sync\` para regenerar \`.infra/\` desde \`.wodlie-config/project.json\`
-- \`wodlie-engine env:sync\` para completar \`.env.development\`
-- \`wodlie-engine ssh:verify\` para validar acceso SSH
-
-No editar manualmente si quieres conservar regeneración limpia:
-- \`.wodlie-config/project.json\` en la parte de \`infra_details\`
-
-Si personalizas manualmente \`.infra/\`, recuerda que \`infra:sync\` la puede regenerar.
-
-### Desarrollo
-El código vive en \`.dev/\`.
-Ahí se trabaja normalmente como proyecto de software.
-
-Usar el engine para reflejar progreso estructural:
-- marcar historias completadas
-- sincronizar estado
-- generar reportes
-
-## Archivos clave
-
-- \`.wodlie-config/project.json\`: configuración general del proyecto
-- \`.wodlie-config/business.json\`: modelo canónico de negocio
-- \`.wodlie-config/events.jsonl\`: historial estructurado de eventos
-- \`.business/\`: requerimientos, historias, reportes y métricas derivadas
-- \`.infra/\`: documentación y runbooks de infraestructura
-- \`.dev/\`: código fuente del proyecto
-- \`.core/\`: artefactos internos del engine
-
-## Dónde leer según la tarea
-- Negocio: \`.business/AGENTS.md\`
-- Infra: \`.infra/AGENTS.md\`
-- Desarrollo: \`.dev/AGENTS.md\`
-- Orquestación del engine: \`.core/AGENTS.md\`
-
-## Secuencia recomendada de trabajo
-
-1. Abrir \`wodlie-engine\`
-2. Revisar o cargar negocio en \`Business\`
-3. Revisar o actualizar infraestructura en \`Infra\`
-4. Trabajar código en \`.dev/\`
-5. Marcar avance con \`wodlie-engine status\`
-6. Cerrar historias con \`wodlie-engine dev:story:complete <ID>\`
-7. Generar reporte con \`wodlie-engine report:draft\`
-
-## Reglas para la IA
-
-- No asumir que un archivo del engine debe editarse a mano.
-- Antes de modificar estructura, verificar si existe un comando del CLI.
-- Si cambia negocio, usar \`Business\`.
-- Si cambia la ficha de infraestructura, usar \`infra:edit\` o \`infra:sync\`.
-- Si un archivo de \`.infra/\` fue personalizado manualmente, avisar antes de regenerarlo.
-- Si el cambio afecta múltiples capas, revisar también \`.business/AGENTS.md\`, \`.infra/AGENTS.md\`, \`.dev/AGENTS.md\` y \`.core/AGENTS.md\`.
-
-## Cuándo pedir confirmación humana
-
-- antes de borrar carpetas del proyecto
-- antes de regenerar \`.infra/\` si hubo edición manual importante
-- antes de cambiar estados o historias sin contexto claro
-- antes de operaciones destructivas o de entrega
-`
-  await fs.writeFile(rootAgentsPath, content, 'utf-8')
+function hasPreconfiguredRuntime(modes: ServiceModeAnswers): boolean {
+  return modes.backend_api === 'fastify'
+    && modes.frontend_public === 'nextjs'
+    && modes.frontend_admin === 'nextjs'
 }
 
 export async function initCommand(proyecto: string, options: InitOptions): Promise<void> {
@@ -328,7 +253,6 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
 
   const resolvedOptions = await resolveInitOptions(options)
 
-  // Preguntas interactivas
   const answers = await inquirer.prompt([
     {
       type: 'input',
@@ -345,7 +269,7 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     {
       type: 'input',
       name: 'domain',
-      message: 'Dominio del proyecto (ej: miprojecto.com):',
+      message: 'Dominio del proyecto (ej: miproyecto.com):',
       default: `${proyecto}.com`,
     },
     {
@@ -369,6 +293,8 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
       default: options.capabilities ? options.capabilities.split(',') : [],
     },
   ])
+
+  const serviceModes = await resolveServiceModes()
 
   const infraAnswers = await inquirer.prompt<InfraAnswers>([
     {
@@ -396,7 +322,7 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
       type: 'input',
       name: 'serverOs',
       message: 'Sistema operativo del servidor:',
-      default: resolvedOptions.infra === 'vps' ? 'Ubuntu 22.04' : '',
+      default: resolvedOptions.infra === 'vps' ? 'Ubuntu 24.04' : '',
       filter: (value: string) => value.trim(),
     },
     {
@@ -454,6 +380,7 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     CONTRACT_TYPE: answers.contractType,
     PROJECT_TYPE: resolvedOptions.type,
     PROJECT_SIZE: resolvedOptions.size,
+    PROJECT_STACK: resolvedOptions.stack,
     INFRA_TYPE: resolvedOptions.infra,
     INFRA_PROVIDER: infraAnswers.provider,
     INFRA_PLAN: infraAnswers.plan,
@@ -468,17 +395,23 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     ENGINE_VERSION: '1.0.0',
     DOMAIN: answers.domain,
     EMAIL: answers.email,
+    BACKEND_API_MODE: serviceModes.backend_api,
+    FRONTEND_PUBLIC_MODE: serviceModes.frontend_public,
+    FRONTEND_ADMIN_MODE: serviceModes.frontend_admin,
   })
 
-  console.log(chalk.cyan('\n→ Copiando template...'))
-  await copyTemplate(resolveTemplateDir(), destDir)
-  await writeProjectRootAgents(destDir)
+  console.log(chalk.cyan('\n→ Copiando bootstrap base...'))
+  await copyTemplate(resolveBootstrapDir('root'), destDir)
 
-  // Actualizar .wodlie-config/project.json con valores reales
+  console.log(chalk.cyan('→ Materializando servicios seleccionados...'))
+  await copySelectedServicePresets(destDir, serviceModes)
+
   const projectConfigPath = path.join(destDir, '.wodlie-config', 'project.json')
   if (await fs.pathExists(projectConfigPath)) {
     const config = await fs.readJson(projectConfigPath)
     config.project = proyecto
+    config.domain = answers.domain
+    config.acme_email = answers.email
     config.contract.type = answers.contractType
     config.contract.history[0].type = answers.contractType
     config.contract.history[0].started = date
@@ -486,6 +419,13 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     config.project_profile.size = resolvedOptions.size
     config.hosting_type = resolvedOptions.infra
     config.capabilities = caps
+    config.stack = resolvedOptions.stack
+    config.apps = {
+      backend: 'backend-api',
+      frontend_public: 'frontend-public',
+      frontend_admin: 'frontend-admin',
+    }
+    config.service_modes = serviceModes
     config.infra_details = {
       provider: infraAnswers.provider,
       plan: infraAnswers.plan,
@@ -509,7 +449,6 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     }
   }
 
-  // Actualizar .core/state.json
   const statePath = path.join(destDir, '.core', 'state.json')
   if (await fs.pathExists(statePath)) {
     const state = await fs.readJson(statePath)
@@ -520,11 +459,12 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     state.project_profile.type = resolvedOptions.type
     state.project_profile.size = resolvedOptions.size
     state.hosting_type = resolvedOptions.infra
+    state.stack = resolvedOptions.stack
+    state.service_modes = serviceModes
     state.generated_at = date
     await fs.writeJson(statePath, state, { spaces: 2 })
   }
 
-  // Agregar .core/state.json al .gitignore
   const gitignorePath = path.join(destDir, '.gitignore')
   if (await fs.pathExists(gitignorePath)) {
     const existing = await fs.readFile(gitignorePath, 'utf-8')
@@ -533,42 +473,41 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     }
   }
 
-  await pruneTemplateBySelection(destDir, {
-    type: resolvedOptions.type,
-    size: resolvedOptions.size,
-    infra: resolvedOptions.infra,
-    capabilities: caps,
-  })
-
-  // Inicializar git
   console.log(chalk.cyan('→ Inicializando repositorio git...'))
   const git = simpleGit(destDir)
   await git.init()
   await git.add('.')
-  await git.commit(`chore(core): inicializar proyecto con wodlie-engine v1.0.0`)
+  await git.commit('chore(core): inicializar proyecto con wodlie-engine v1.0.0')
 
-  // Resumen
   console.log(chalk.green('\n✓ Proyecto creado exitosamente\n'))
   console.log(chalk.bold('Estructura:'))
   console.log(`  ${proyecto}/`)
-  console.log(`  ├── .business/     ← capa de negocio`)
-  console.log(`  ├── .infra/        ← capa de infraestructura`)
-  console.log(`  ├── .core/         ← orquestación del engine`)
-  console.log(`  ├── .dev/          ← capa de desarrollo + código`)
-  console.log(`  └── .wodlie-config/`)
-  console.log('')
-  console.log(chalk.bold('Próximos pasos:'))
-  console.log(chalk.cyan(`  cd ${proyecto}`))
-  console.log(chalk.cyan(`  cp .dev/src/backend-api/.env.example .dev/src/backend-api/.env.development`))
-  console.log(chalk.cyan(`  wodlie-engine`))
-  console.log(chalk.cyan(`  wodlie-engine status`))
+  console.log('  ├── .business/     ← capa de negocio')
+  console.log('  ├── .infra/        ← Docker, envs, scripts y runbooks')
+  console.log('  ├── .core/         ← orquestación del engine')
+  console.log('  ├── .dev/          ← código, tests y estándares')
+  console.log('  ├── .github/       ← workflows cuando el proyecto los adopte')
+  console.log('  └── .wodlie-config/')
   console.log('')
   console.log(chalk.bold('Selección aplicada:'))
   console.log(`  type=${resolvedOptions.type} · size=${resolvedOptions.size} · stack=${resolvedOptions.stack} · infra=${resolvedOptions.infra}`)
+  console.log(`  backend-api=${serviceModes.backend_api} · frontend-public=${serviceModes.frontend_public} · frontend-admin=${serviceModes.frontend_admin}`)
   console.log('')
 
   if (caps.length > 0) {
     console.log(chalk.bold(`Capabilities activadas: ${caps.join(', ')}`))
     console.log('')
   }
+
+  console.log(chalk.bold('Próximos pasos:'))
+  console.log(chalk.cyan(`  cd ${proyecto}`))
+  console.log(chalk.cyan('  npm run env:sync'))
+  if (hasPreconfiguredRuntime(serviceModes)) {
+    console.log(chalk.cyan('  npm run dev:up'))
+  } else {
+    console.log(chalk.yellow('  completar o sustituir los servicios neutral antes de usar npm run dev:up / npm run test:up'))
+  }
+  console.log(chalk.cyan('  wodlie-engine'))
+  console.log(chalk.cyan('  wodlie-engine status'))
+  console.log('')
 }

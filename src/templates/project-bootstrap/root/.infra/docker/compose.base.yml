@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1 -p ${POSTGRES_CONTAINER_PORT}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_CONTAINER_PORT}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: ${REDIS_IMAGE}
+    restart: unless-stopped
+    profiles: [redis]
+    command: ["redis-server", "--appendonly", "${REDIS_APPENDONLY}"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "${REDIS_PORT}:${REDIS_CONTAINER_PORT}"
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: ${MINIO_IMAGE}
+    restart: unless-stopped
+    profiles: [minio]
+    command: server ${MINIO_DATA_DIR} --console-address ":${MINIO_CONSOLE_CONTAINER_PORT}"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_API_PORT}:${MINIO_API_CONTAINER_PORT}"
+      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_CONTAINER_PORT}"
+    volumes:
+      - minio_data:/data
+
+volumes:
+  postgres_data:
+    name: ${COMPOSE_VOLUME_PREFIX}_postgres_data
+  redis_data:
+    name: ${COMPOSE_VOLUME_PREFIX}_redis_data
+  minio_data:
+    name: ${COMPOSE_VOLUME_PREFIX}_minio_data

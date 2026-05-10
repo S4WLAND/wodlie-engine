@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import fs from 'fs-extra'
 import path from 'path'
+import { spawn } from 'node:child_process'
 import { loadProjectConfig } from './shared/config'
 
 function parseEnvFile(content: string): Map<string, string> {
@@ -15,6 +16,19 @@ function parseEnvFile(content: string): Map<string, string> {
     if (key) vars.set(key, val)
   }
   return vars
+}
+
+async function runProjectEnvScript(scriptPath: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [scriptPath, 'env', 'sync'], {
+      cwd: process.cwd(),
+      stdio: 'inherit',
+      shell: false,
+    })
+
+    child.on('error', reject)
+    child.on('exit', (code) => resolve(code ?? 1))
+  })
 }
 
 async function syncEnvFile(examplePath: string, targetPath: string, label: string): Promise<void> {
@@ -61,6 +75,17 @@ async function syncEnvFile(examplePath: string, targetPath: string, label: strin
 }
 
 export async function envSyncCommand(): Promise<void> {
+  const projectEnvScript = path.join(process.cwd(), '.infra', 'scripts', 'env', 'index.mjs')
+
+  if (await fs.pathExists(projectEnvScript)) {
+    console.log(chalk.bold('\n🔐 Env Sync — Delegando a .infra/scripts/env/index.mjs\n'))
+    const exitCode = await runProjectEnvScript(projectEnvScript)
+    if (exitCode !== 0) {
+      process.exit(exitCode)
+    }
+    return
+  }
+
   console.log(chalk.bold('\n🔐 Env Sync — Sincronizando variables de entorno\n'))
 
   let config

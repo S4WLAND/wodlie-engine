@@ -1,0 +1,25 @@
+{
+  "name": "{{PROJECT_NAME}}-workspace",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Operación local de entornos dev/test e infraestructura del proyecto {{PROJECT_NAME}}.",
+  "scripts": {
+    "dev:up": "node ./.infra/scripts/env/index.mjs dev up",
+    "dev:down": "node ./.infra/scripts/env/index.mjs dev down",
+    "dev:logs": "node ./.infra/scripts/env/index.mjs dev logs",
+    "dev:restart": "node ./.infra/scripts/env/index.mjs dev restart",
+    "dev:shell": "node ./.infra/scripts/env/index.mjs dev shell",
+    "test:up": "node ./.infra/scripts/env/index.mjs test up",
+    "test:down": "node ./.infra/scripts/env/index.mjs test down",
+    "test:logs": "node ./.infra/scripts/env/index.mjs test logs",
+    "test:restart": "node ./.infra/scripts/env/index.mjs test restart",
+    "test:shell": "node ./.infra/scripts/env/index.mjs test shell",
+    "test:expose": "node ./.infra/scripts/env/index.mjs test expose",
+    "test:close": "node ./.infra/scripts/env/index.mjs test close",
+    "test:deploy-ghcr": "node ./.infra/scripts/env/index.mjs test deploy-ghcr",
+    "env:sync": "node ./.infra/scripts/env/index.mjs env sync",
+    "env:check": "node ./.infra/scripts/env/index.mjs env check",
+    "infra:status": "node ./.infra/scripts/env/index.mjs infra status",
+    "infra:ports": "node ./.infra/scripts/env/index.mjs infra ports"
+  }
+}

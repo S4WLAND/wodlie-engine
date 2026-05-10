@@ -1,45 +1,34 @@
 # Changelog — `@s4wland/wodlie-engine`
 
-## [Unreleased] — 2026-04-24
+## [Unreleased] — 2026-05-10
 
 ### Añadido
-- modelo canónico mínimo en `.wodlie-config/`
-- `business.json`, `architecture.json` y `events.jsonl`
-- comandos `business:epic:list`, `business:epic:edit`, `business:epic:status`
-- comandos `business:story:list`, `business:story:edit`, `business:story:status`
-- comandos `infra:edit` e `infra:sync`
-- creación de `AGENTS.md` en raíz de proyectos nuevos
-- comando `dev:story:complete`
-- comando `business:sync`
-- comando `reconcile`
-- derivación de `overview.md` y `.business/progress.*` desde el modelo canónico
-- borrador semanal alimentado por historias y eventos
-- smoke tests por script contra `dist/`
-- shell interactiva en árbol al ejecutar `wodlie-engine` sin argumentos
-- browse con búsqueda por ID, título y slug para épicos e historias
-- serialización automática e inmutable para épicos (`EP-XXX`), historias (`US-XXX`) y pivots (`PV-XXX`)
-- prompts libres de infraestructura para capturar proveedor, plan, CPU, RAM, disco, SSH y notas
-- `AGENTS.md` en raíz con reglas de desarrollo, documentación y convención de commits
+- bootstrap `project-bootstrap` con raíz común y presets por servicio
+- modos `neutral|fastify` para `backend-api`
+- modos `neutral|nextjs` para `frontend-public` y `frontend-admin`
+- `service_modes` en `.wodlie-config/project.json` y `architecture.json`
+- documentación y `AGENTS.md` por servicio en presets runnable y neutral
+- `.github/workflows/README.md` en la raíz del bootstrap
+- `service-ops.md` en `.infra/vps/`
+- `COMPOSE_PROFILES` para activar Redis y MinIO como servicios opcionales
+- `colors.mjs` y salida más clara en `.infra/scripts/env/index.mjs`
+- `dev:shell` y `test:shell` por servicio en el bootstrap generado
 
 ### Cambiado
-- `status` ahora sincroniza negocio canónico antes de recalcular salud
-- `trigger` ahora registra eventos y usa la lógica de negocio canónica
-- `report:draft` y `report` reflejan mejor el estado real del modelo
-- `build` ahora copia templates a `dist/`
-- `init` ahora pregunta también por `type`, `size`, `stack` e `infra`
-- `init` ahora recorta la generación del template según infraestructura, tamaño, perfil y capabilities seleccionadas
-- el binario y nombre visible de la CLI ahora es `wodlie-engine`
-- negocio ahora usa estados normalizados `draft/ready/in-progress/in-review/blocked/completed/pivoted/archived`
-- `status`, `health`, `overview.md` y `progress.*` ahora usan métricas compatibles con el nuevo workflow de negocio
-- `init` ahora persiste detalles libres de infraestructura en `.wodlie-config/project.json`
-- `env:sync` y `ssh:verify` ahora reutilizan `SSH_HOST` y `SSH_USER` cargados en la ficha de infra
-- la capa `infra` del proyecto generado ahora es documental; `init` elimina `docker-compose/` del proyecto creado
-- la shell interactiva ahora incluye menú `Infra` para editar ficha y regenerar documentación
+- `init` ya no copia `node-fastify`; ahora compone el proyecto desde `project-bootstrap`
+- `init` ahora pregunta el modo de cada servicio y copia el preset seleccionado a `.dev/src/<service>/`
+- `infra:sync` ahora regenera una documentación alineada con Docker local `dev/test`, perfiles opcionales y composición por servicio
+- `env:sync` ya delegaba al script del proyecto; ahora la superficie documental y de stack queda alineada con esa delegación
+- `compose.base.yml` mueve Redis y MinIO a profiles opcionales
+- `compose.dev.yml` y `compose.test.yml` dejan de depender duramente de Redis/MinIO
+- `compose.test.yml` agrega healthcheck de backend
+- `update-test-service.ps1` ahora resuelve el `project-name` desde `stack.test.env`
+- `logs` ahora muestra primero el resumen del stack y `catalog.json` evita reescrituras sin cambios
+- el build deja de compilar `src/templates/` como código TypeScript del engine
+- `overview.md` ahora muestra la composición real por servicio cuando existe `service_modes`
 
-### Aclarado
-- solo `node-fastify` está implementado
-- `deploy`, `deliver`, `reimport` y `upgrade` siguen siendo flujos guiados o planificados
-- la generación selectiva hoy recorta principalmente `.infra/`; la composición profunda de `.dev/` por perfil/capabilities sigue pendiente
+### Documentación
+- `README.md`, `docs/getting-started.md`, `docs/templates.md`, `docs/commands.md`, `docs/current-state.md`, `docs/deployment.md` y `docs/agents.md` ahora describen el bootstrap híbrido y el estado real actual
 
 ## [1.0.0] — 2026-04-23
 

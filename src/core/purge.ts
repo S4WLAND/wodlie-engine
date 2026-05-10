@@ -37,7 +37,7 @@ export async function purgeCommand(): Promise<void> {
     }
   }
 
-  console.log(chalk.dim('\n  Se conservaron: .business/ .infra/ .dev/src/ .dev/GUIDELINES.md .wodlie-export/'))
+  console.log(chalk.dim('\n  Se conservaron: .business/ .infra/ .dev/src/ .dev/development_guidelines.md .wodlie-export/'))
 
   await git.add('.')
   try {

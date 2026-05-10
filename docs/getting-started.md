@@ -2,13 +2,11 @@
 
 ## Prerrequisitos
 
-- **Node.js >= 20.0.0** — [descargar](https://nodejs.org)
-- **Git** — configurado con usuario y email
-- **npm**
+- Node.js >= 20
+- Git
+- npm
 
----
-
-## 1. Preparar el engine localmente
+## 1. Preparar el engine
 
 ```bash
 git clone <repo>
@@ -19,98 +17,97 @@ npm run test:run
 npm link
 ```
 
----
-
-## 2. Abrir la shell del engine
+## 2. Crear un proyecto
 
 ```bash
-wodlie-engine
+wodlie-engine init mi-proyecto
 ```
 
-Dentro de la shell:
-- `Project > Inicializar proyecto nuevo`
-- `Business > Epics` y `Business > Stories`
-- `Reports` para reportes semanales
+`init` pregunta por:
 
-También puedes seguir usando modo directo:
-
-```bash
-wodlie-engine init my-project
-```
-
-Hoy `init` pregunta de forma interactiva por:
 - tipo de proyecto
 - tamaño
-- stack
-- infraestructura
-- nombre del cliente
-- nombre del operador
-- dominio
-- email de SSL
+- stack base (`node|python|go`) como metadata de compatibilidad
+- infraestructura objetivo
+- cliente, operador, dominio y email
 - tipo de contrato
 - capabilities
+- modo de cada servicio
 
-Y recorta el template para dejar solo:
-- la carpeta de infra seleccionada
-- el tamaño seleccionado
-- el perfil correspondiente si existe
-- las capabilities elegidas
+Modos disponibles:
 
-### Estructura generada
+- `backend-api`: `neutral` o `fastify`
+- `frontend-public`: `neutral` o `nextjs`
+- `frontend-admin`: `neutral` o `nextjs`
 
-```
-my-project/
-├── .business/        ← capa de negocio
-├── .infra/           ← capa de infraestructura
-├── .core/            ← orquestación del engine
-├── .dev/             ← capa de desarrollo + código
-├── .wodlie-config/   ← config del engine (se purga al entregar)
-│   ├── project.json
-│   ├── business.json
-│   ├── architecture.json
-│   └── events.jsonl
+## 3. Estructura generada
+
+```text
+mi-proyecto/
+├── .business/
+├── .infra/
+├── .core/
+├── .dev/
+│   └── src/
+│       ├── backend-api/
+│       ├── frontend-public/
+│       └── frontend-admin/
+├── .github/
+├── .wodlie-config/
 ├── .gitignore
 ├── .env.example
 └── README.md
 ```
 
----
-
-## 3. Crear negocio canónico
+## 4. Materializar envs locales
 
 ```bash
-cd my-project
-wodlie-engine
-# luego usar Business > Epics y Business > Stories
+cd mi-proyecto
+npm run env:sync
 ```
 
----
+Esto crea o completa:
 
-## 4. Sincronizar artefactos y métricas
+- `.dev/src/backend-api/.env.development`
+- `.dev/src/backend-api/.env.test`
+- `.dev/src/frontend-public/.env.development`
+- `.dev/src/frontend-public/.env.test`
+- `.dev/src/frontend-admin/.env.development`
+- `.dev/src/frontend-admin/.env.test`
+- `.infra/env/stack.dev.env`
+- `.infra/env/stack.test.env`
+- `.infra/env/test-expose.env`
+
+## 5. Levantar el stack local
+
+Si elegiste la combinación runnable:
 
 ```bash
+npm run dev:up
+# o
+npm run test:up
+```
+
+Si dejaste algún servicio en `neutral`, el proyecto queda documentado pero no runnable todavía. En ese caso:
+
+- completar el servicio manualmente
+- o adaptar `.infra/docker/*` y `.infra/env/*` al stack real
+
+## 6. Operar negocio y reportes
+
+```bash
+wodlie-engine
 wodlie-engine business:sync
 wodlie-engine status
 wodlie-engine health
-```
-
----
-
-## 5. Registrar avance desde desarrollo
-
-```bash
-wodlie-engine dev:story:complete US-001
 wodlie-engine report:draft
 ```
 
----
-
 ## Límites actuales
 
-- Solo `node-fastify` está implementado de verdad.
-- `env:sync` trabaja sobre `.env.development` locales, no sincroniza un VPS real.
-- `deploy`, `deliver`, `reimport` y `upgrade` siguen siendo flujos guiados/manuales.
-- No existe servidor MCP todavía; la interfaz autoritativa es la CLI.
+- no existe MCP
+- `deploy` sigue siendo guiado
+- `deliver`, `reimport` y `upgrade` no cierran un flujo end-to-end todavía
 
 ## Siguiente lectura
 

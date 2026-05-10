@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "updated_at": "{{DATE}}T00:00:00.000Z",
+  "apps": {
+    "backend": "backend-api",
+    "frontend_public": "frontend-public",
+    "frontend_admin": "frontend-admin"
+  },
+  "service_modes": {
+    "backend_api": "{{BACKEND_API_MODE}}",
+    "frontend_public": "{{FRONTEND_PUBLIC_MODE}}",
+    "frontend_admin": "{{FRONTEND_ADMIN_MODE}}"
+  },
+  "capabilities": [],
+  "adapters": {
+    "state": "local",
+    "queue": "graphile",
+    "cache": "memory",
+    "realtime": "polling"
+  }
+}

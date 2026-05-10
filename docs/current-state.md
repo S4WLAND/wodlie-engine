@@ -1,6 +1,6 @@
 # Current State
 
-## Qué existe hoy
+## Implementado hoy
 
 ### Núcleo canónico
 
@@ -9,88 +9,39 @@
 - `.wodlie-config/architecture.json`
 - `.wodlie-config/events.jsonl`
 
-### Comandos estructurales
+### Bootstrap
 
-- `init`
-- `business:epic:create`
-- `business:epic:list`
-- `business:epic:edit`
-- `business:epic:status`
-- `business:story:create`
-- `business:story:list`
-- `business:story:edit`
-- `business:story:status`
-- `business:pivot`
-- `business:sync`
-- `dev:story:complete`
-- `status`
-- `health`
-- `report:draft`
-- `report`
-- `env:sync`
-- `ssh:verify`
-- `export`
-- `purge`
-- `reconcile`
+- `init` con composición por servicio
+- presets `neutral`, `fastify` y `nextjs`
+- `service_modes` persistidos en `project.json`
+- `AGENTS.md` y documentación por capa/servicio
 
-### Comandos guiados o parciales
+### Infra local
 
-- `module:add`
-- `module:remove`
+- `.infra/docker/compose.base.yml`
+- overlays `dev` y `test`
+- `env:sync` delegado a `.infra/scripts/env/index.mjs`
+- Redis y MinIO opcionales vía `COMPOSE_PROFILES`
+- helper robusto `.infra/scripts/ci/update-test-service.ps1`
+
+### Negocio y reportes
+
+- épicos, historias, estados y pivots
+- sincronización de `overview.md` y `.business/progress.*`
+- `status`, `health`, `report:draft` y `report`
+
+## Parcial o guiado
+
 - `deploy`
 - `deliver`
+- `module:add`
+- `module:remove`
 
-### Comandos planificados
+## No resuelto todavía
 
-- `reimport`
-- `upgrade`
-
-## Qué sincroniza realmente el engine
-
-- negocio canónico -> `overview.md`
-- negocio canónico -> `.business/progress.*`
-- negocio + métricas -> `.core/state.json`
-- eventos -> reportes semanales
-- `dev:story:complete` -> estado de historia en negocio
-- triggers manuales -> eventos y estado
-
-## Qué no está resuelto todavía
-
-### Interfaz agentica
-
-- no hay MCP server
-- la CLI ya tiene shell en árbol para operar negocio y reportes sin memorizar IDs
-
-### Variabilidad del framework
-
-- no hay composición real de templates por `type`, `size`, `infra` o `capabilities`
-- no hay reconciliación estructural completa si cambia el perfil
-
-### Portabilidad de módulos
-
-- `module:add` solo copia carpetas
-- no existe análisis de compatibilidad ni adaptación automática
-- no hay contrato machine-readable por módulo
-
-### CI/CD y eventos
-
-- no se parsean commits para disparar eventos
-- no hay workflow del engine que gobierne estado automáticamente
-- deploy y deliver siguen siendo flujos guiados
-
-### Estado multi-capa
-
-- negocio es la capa más conectada
-- infra y dev todavía no producen métricas derivadas profundas
-- changelog no se consolida automáticamente desde git
-- las métricas nuevas viven sobre estados `draft/ready/in-progress/in-review/blocked/completed/pivoted/archived`
-
-## Qué faltaría para acercarse a la visión completa
-
-- MCP sobre los mismos casos de uso de la CLI
-- reconciliador de drift entre modelo, docs y proyecto generado
-- surface de decisiones de arquitectura e infra más rica
-- grafo de dependencias de módulos
-- eventos provenientes de commits, CI/CD y resultados de pruebas
-- reporte cliente más automatizado
-- upgrade y reimport reales
+- MCP
+- comando dedicado para cambiar presets después de `init`
+- soporte runnable para stacks no Node dentro del bootstrap
+- CI/CD completa ya activada en todos los proyectos generados
+- reimport/upgrade end-to-end
+- reconciliación estructural profunda entre plantilla, proyecto y drift manual

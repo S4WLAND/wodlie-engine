@@ -1,0 +1,15 @@
+event: on-deploy
+description: Se ejecuta después de cada deploy exitoso
+steps:
+  - layer: CORE
+    run: scripts/status.sh
+    description: Actualiza state.json con última fecha de deploy
+  - layer: INFRA
+    run: scripts/notify.sh "deploy completado"
+    description: Notifica al operador via ntfy
+  - layer: DEV
+    run: scripts/progress-update.sh
+    description: Actualiza métricas de progreso
+  - layer: CORE
+    run: scripts/status.sh --changelog
+    description: Consolida changelog con el evento de deploy

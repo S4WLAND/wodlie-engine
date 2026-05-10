@@ -28,6 +28,20 @@ function epicCompletion(epic: EpicRecord): { completed: number; total: number; p
   return { completed, total, progressPct }
 }
 
+function renderStackLabel(config: ProjectConfig): string {
+  if (!config.service_modes) {
+    return config.stack
+  }
+
+  const modes = [
+    `backend-api=${config.service_modes.backend_api}`,
+    `frontend-public=${config.service_modes.frontend_public}`,
+    `frontend-admin=${config.service_modes.frontend_admin}`,
+  ]
+
+  return `${config.stack} · ${modes.join(' · ')}`
+}
+
 export function renderOverviewMarkdown(config: ProjectConfig, model: BusinessModel): string {
   const progress = getBusinessProgress(model)
 
@@ -64,7 +78,7 @@ ${storyRows}`
 
   return `# Resumen Técnico de Requerimientos
 > Proyecto: ${config.project}
-> Stack: ${config.stack} · Última actualización: ${model.updated_at.split('T')[0]}
+> Stack: ${renderStackLabel(config)} · Última actualización: ${model.updated_at.split('T')[0]}
 
 ---
 

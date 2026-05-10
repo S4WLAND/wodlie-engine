@@ -1,11 +1,10 @@
 # Referencia de Comandos — Estado Real
 
-Este documento describe lo que cada comando hace hoy.
-
 Estados usados:
+
 - `implemented`: funcional y conectado al modelo actual
 - `guided`: útil, pero deja pasos manuales
-- `planned`: existe como placeholder, no resuelve el flujo completo
+- `planned`: placeholder o flujo todavía incompleto
 
 ## Shell interactiva
 
@@ -13,10 +12,12 @@ Estados usados:
 
 Estado: `implemented`
 
-Abre una shell interactiva:
-- menú principal en árbol: `Business`, `Reports`, `Project`
-- browse con búsqueda por ID, título o slug para épicos e historias
-- creación, edición, cambios de estado, pivots y archive sin escribir IDs manuales
+Abre una shell con menús:
+
+- `Business`
+- `Infra`
+- `Reports`
+- `Project`
 
 ## Inicialización
 
@@ -24,479 +25,127 @@ Abre una shell interactiva:
 
 Estado: `implemented`
 
-Genera un proyecto nuevo desde el template `node-fastify`, aplica reemplazo de variables e inicializa git.
-
-```bash
-wodlie-engine init my-project \
-  --type webapp \        # webapp | platform | enterprise | iot
-  --size medium \        # small | medium | large
-  --stack node           # node (default) | python | go
-```
+Compone un proyecto nuevo desde `project-bootstrap`.
 
 Flags:
-- `--capabilities` — ai, automation, native, realtime, media (separados por coma)
-- `--infra` — vps | hosting | cloud (default: vps)
 
-Además del modo con flags, `init` pregunta de forma interactiva por:
-- tipo
-- tamaño
-- stack
-- infraestructura
-- datos operativos del proyecto
-- ficha libre de infraestructura
-- capabilities
+- `--type <tipo>` → `webapp|platform|enterprise|iot`
+- `--size <tamaño>` → `small|medium|large`
+- `--stack <stack>` → `node|python|go`
+- `--infra <infra>` → `vps|hosting|cloud`
+- `--capabilities <caps>` → `ai,automation,native,realtime,media`
 
-Qué recorta hoy según la selección:
-- `.infra/` conserva solo la carpeta elegida
-- elimina `docker-compose/` del proyecto generado
-- deja documentación y metadatos de infra para edición manual
+Además pregunta por:
 
-Limitaciones actuales:
-- `--stack` acepta valores `node|python|go`, pero solo `node-fastify` está implementado.
-- no genera despliegue operativo; la capa `infra` queda documental por ahora.
+- cliente, operador, dominio y email
+- tipo de contrato
+- modo de `backend-api`
+- modo de `frontend-public`
+- modo de `frontend-admin`
 
----
+Efecto real:
 
-## Entornos
+- copia la raíz del bootstrap
+- copia el preset elegido a `.dev/src/<service>`
+- persiste `service_modes` en `.wodlie-config/project.json`
+- regenera `.infra/` documental desde `project.json`
+- inicializa git
+
+Limitaciones:
+
+- `--stack` hoy es metadata de compatibilidad; no selecciona un stack runnable distinto
+- el stack Docker preconfigurado sólo queda listo con `backend-api=fastify`, `frontend-public=nextjs`, `frontend-admin=nextjs`
+
+## Entornos y variables
 
 ### `wodlie-engine env:sync`
 
 Estado: `implemented`
 
-Sincroniza claves de `.env.example` a `.env.development` locales en las apps del template.
+Si existe `.infra/scripts/env/index.mjs`, delega ahí.
+En proyectos nuevos esa es la ruta normal.
 
-```bash
-wodlie-engine env:sync
-```
+Resultado esperado:
 
-No hace hoy:
-- sincronización con VPS
-- manejo de secrets remotos
-- promoción de variables por entorno
+- crea o completa `.env.development` y `.env.test` por servicio
+- crea o completa `.infra/env/stack.dev.env`
+- crea o completa `.infra/env/stack.test.env`
+- crea o completa `.infra/env/test-expose.env`
+- genera `.infra/env/catalog.json`
 
----
+### Scripts `npm` del proyecto generado
 
-## Infraestructura documental
+Estado: `implemented`
+
+- `npm run env:sync`
+- `npm run env:check`
+- `npm run dev:up`
+- `npm run dev:down`
+- `npm run dev:logs`
+- `npm run dev:shell <servicio>`
+- `npm run test:up`
+- `npm run test:down`
+- `npm run test:logs`
+- `npm run test:shell <servicio>`
+- `npm run test:expose`
+- `npm run test:close`
+- `npm run infra:status`
+- `npm run infra:ports`
+
+Redis y MinIO son opcionales vía `COMPOSE_PROFILES`.
+`logs` imprime primero el resumen del stack y `shell` abre una sesión interactiva dentro del contenedor indicado.
+`<servicio>` puede ser cualquier nombre definido en los compose files del proyecto.
+
+## Infraestructura
 
 ### `wodlie-engine infra:edit`
 
 Estado: `implemented`
 
-Abre prompts para editar la ficha de infraestructura de un proyecto ya creado y regenera la documentación de `.infra/`.
-
-Ejemplos de campos:
-- proveedor
-- plan
-- región
-- sistema operativo
-- CPU
-- RAM
-- disco
-- `SSH_HOST`
-- `SSH_USER`
-- notas
+Edita la ficha técnica de infraestructura en `.wodlie-config/project.json` y regenera la documentación de `.infra/`.
 
 ### `wodlie-engine infra:sync`
 
 Estado: `implemented`
 
-Regenera la documentación de infraestructura desde `.wodlie-config/project.json` sin tocar negocio ni desarrollo.
-
-```bash
-wodlie-engine infra:sync
-```
-
-Uso recomendado:
-- después de cambiar `project.json` con `infra:edit`
-- cuando quieras reescribir limpio `README.md`, `checklist.md`, `secrets.md` o `ci-cd.md` de `.infra/`
-
----
+Regenera la documentación de `.infra/` desde `.wodlie-config/project.json`.
+No toca negocio ni código de `.dev/`.
 
 ## Negocio canónico
 
-### `wodlie-engine business:epic:create <titulo>`
-
 Estado: `implemented`
 
-Crea un épico canónico en `.wodlie-config/business.json`, genera su archivo estándar y asigna un ID único `EP-XXX`.
-
-```bash
-wodlie-engine business:epic:create "Onboarding cliente"
-```
-
-### `wodlie-engine business:epic:list`
-
-Estado: `implemented`
-
-Lista los épicos canónicos.
-
-### `wodlie-engine business:epic:edit <epicId>`
-
-Estado: `implemented`
-
-Edita título y descripción de un épico existente.
-
-### `wodlie-engine business:epic:status <epicId> <estado>`
-
-Estado: `implemented`
-
-Cambia el estado de un épico.
-
-Estados soportados:
-- `draft`
-- `active`
-- `blocked`
-- `completed`
-- `pivoted`
-- `archived`
-
-### `wodlie-engine business:story:create <epicId> <titulo>`
-
-Estado: `implemented`
-
-Crea una historia canónica, genera su archivo estándar, sincroniza overview/progress y asigna un ID único `US-XXX`.
-
-```bash
-wodlie-engine business:story:create EP-001 "Registrar brief" \
-  --as operador \
-  --want "capturar el brief" \
-  --so-that "el proyecto arranque con contexto"
-```
-
-### `wodlie-engine business:story:list`
-
-Estado: `implemented`
-
-Lista historias canónicas.
-
-### `wodlie-engine business:story:edit <storyId>`
-
-Estado: `implemented`
-
-Edita título, historia de usuario, prioridad y asignación.
-
-### `wodlie-engine business:story:status <storyId> <estado>`
-
-Estado: `implemented`
-
-Actualiza el estado canónico de una historia.
-
-```bash
-wodlie-engine business:story:status US-001 in-progress
-wodlie-engine business:story:status US-001 completed
-```
-
-Estados soportados:
-- `draft`
-- `ready`
-- `in-progress`
-- `blocked`
-- `in-review`
-- `completed`
-- `pivoted`
-- `archived`
-
-### `wodlie-engine business:pivot <targetId>`
-
-Estado: `implemented`
-
-Registra un pivot sobre un épico, una historia o `global`.
-
-```bash
-wodlie-engine business:pivot EP-001 --reason "cliente cambió la dirección del producto"
-wodlie-engine business:pivot global --reason "se redefine el alcance comercial"
-```
-
-### `wodlie-engine dev:story:complete <storyId>`
-
-Estado: `implemented`
-
-Marca una historia como completada desde DEV y sincroniza negocio, métricas y eventos.
-
-```bash
-wodlie-engine dev:story:complete US-001
-```
-
-### `wodlie-engine business:sync`
-
-Estado: `implemented`
-
-Reconstruye `overview.md`, `progress.*` y demás artefactos derivados desde `business.json`.
-
-```bash
-wodlie-engine business:sync
-```
-
----
-
-## Estado y métricas
-
-### `wodlie-engine status`
-
-Estado: `implemented`
-
-Actualiza el estado completo del proyecto.
-
-```bash
-wodlie-engine status
-```
-
-**Genera/actualiza:**
-- `state.json` — estado global del proyecto
-- `progress.json` por capa — métricas de avance
-- `.wodlie-config/events.jsonl` — eventos del engine para sincronización y reportes
-
-No hace hoy:
-- parseo automático de commits
-- consolidación real de changelog desde git
-- derivación fuerte desde infra/dev, salvo triggers manuales y comandos estructurados
-
-### `wodlie-engine health`
-
-Estado: `implemented`
-
-Muestra la salud del proyecto en consola de forma visual.
-
-```bash
-wodlie-engine health
-```
-
-**Muestra:**
-- avance global
-- backlog por estado
-- bloqueadas, pivots y WIP
-- último deploy y último incidente
-- alertas por riesgo operativo
-
----
-
-## Reportes
-
-### `wodlie-engine report:draft`
-
-Estado: `implemented`
-
-Genera borrador del reporte semanal interno.
-
-```bash
-wodlie-engine report:draft
-```
-
-- Lee historias y eventos canónicos
-- Genera un borrador Markdown con secciones narrativas vacías
-- El operador o la IA completan la parte libre
-
-### `wodlie-engine report`
-
-Estado: `implemented`
-
-Genera el reporte `.tex` para el cliente.
-
-```bash
-wodlie-engine report
-```
-
-- Genera el `.tex` base
-- No compila a PDF
-- No reescribe narrativas por sí mismo
-
----
-
-## Triggers
-
-### `wodlie-engine trigger <nombre>`
-
-Estado: `implemented`
-
-Disparo manual de un trigger.
-
-```bash
-wodlie-engine trigger on-deploy --project my-project
-wodlie-engine trigger on-incident "caída de API 14:30hs"
-wodlie-engine trigger on-milestone --story US-003
-wodlie-engine trigger on-pivot --epic EP-001
-```
-
-**Triggers disponibles:**
-- `on-deploy` — post-deploy
-- `on-incident` — incidente registrado
-- `on-milestone` — historia completada
-- `on-pivot` — cambio de dirección del cliente
-
-Observación:
-- hoy los triggers son manuales; no hay workflow que lea commits y dispare esto automáticamente.
-
----
-
-## Deploy
-
-### `wodlie-engine deploy`
-
-Estado: `guided`
-
-Muestra el flujo manual recomendado para deploy.
-
-```bash
-wodlie-engine deploy --env staging --target all
-wodlie-engine deploy --env production --target api
-wodlie-engine deploy --env staging --target front --skip e2e
-```
-
-**Flags:**
-- `--env` — staging | production
-- `--target` — front | admin | api | worker | all
-- `--skip` — tests | e2e | perf | security | a11y | ci
-
-No hace hoy:
-- push automático
-- ejecución remota
-- integración CI/CD real
-
-### `wodlie-engine ssh:verify`
-
-Estado: `implemented`
-
-Verifica conexión SSH con el VPS.
-
-```bash
-wodlie-engine ssh:verify
-```
-
----
-
-## Ciclo de vida del proyecto
-
-### `wodlie-engine export`
-
-Estado: `implemented`
-
-Genera `.wodlie-export/` con el historial completo del proyecto.
-
-```bash
-wodlie-engine export
-```
-
-**Genera:**
-```
-.wodlie-export/
-├── README.md
-├── state/final-state.json
-├── changelog/full-changelog.json
-├── metrics/history.json
-├── snapshots/YYYY-MM-DD.json
-└── delivery/delivery-report.md
-```
-
-### `wodlie-engine purge`
-
-Estado: `implemented`
-
-Elimina el engine del proyecto. **Hace snapshot git automático antes.**
-
-```bash
-wodlie-engine purge
-```
-
-Implementación real hoy:
-- elimina `.core/`
-- elimina `.wodlie-config/`
-- elimina `.dev/AGENTS.md`
-
-No hace hoy:
-- limpieza selectiva de workflows del engine
-- rollback sofisticado
-
-### `wodlie-engine deliver`
-
-Estado: `guided`
-
-Entrega completa al cliente.
-
-```bash
-wodlie-engine deliver --target https://github.com/cliente/my-project
-```
-
-Hoy imprime la secuencia manual recomendada.
-
-### `wodlie-engine reimport`
-
-Estado: `planned`
-
-Reactiva el engine en un proyecto del cliente.
-
-```bash
-wodlie-engine reimport --from https://github.com/cliente/my-project
-```
-
-Hoy solo imprime instrucciones manuales.
-
----
-
-## Engine
-
-### `wodlie-engine upgrade`
-
-Estado: `planned`
-
-Informa actualizaciones disponibles del engine.
-
-```bash
-wodlie-engine upgrade
-# → versión actual: 1.0.0
-# → versión disponible: 1.2.0
-# → archivos que cambiarían: ...
-# → reglas de AGENTS.md que se actualizarían: ...
-```
-
-Hoy no aplica cambios reales.
-
----
-
-## Módulos
-
-### `wodlie-engine module:add <nombre>`
-
-Estado: `guided`
-
-Copia el módulo desde otro proyecto al path esperado del backend.
-
-```bash
-wodlie-engine module:add turnos --from ../my-project
-```
-
-No hace hoy:
-- adaptación automática con IA
-- reporte de compatibilidad
-- registro automático en `app.ts`
-- commit automático
-
-### `wodlie-engine module:remove <nombre>`
-
-Estado: `guided`
-
-Muestra los pasos manuales para eliminar un módulo.
-
-```bash
-wodlie-engine module:remove turnos
-```
-
-No hace hoy:
-- grafo de dependencias
-- migraciones automáticas
-- borrado seguro real
-
----
-
-## Reconciliación
-
-### `wodlie-engine reconcile`
-
-Estado: `implemented`
-
-Reconstruye artefactos derivados desde el modelo canónico actual.
-
-```bash
-wodlie-engine reconcile
-```
-
-Hoy equivale a una sincronización conservadora de negocio y métricas.
+Comandos principales:
+
+- `business:epic:create`
+- `business:epic:list`
+- `business:epic:edit`
+- `business:epic:status`
+- `business:story:create`
+- `business:story:list`
+- `business:story:edit`
+- `business:story:status`
+- `business:pivot`
+- `business:sync`
+- `dev:story:complete`
+- `status`
+- `health`
+- `report:draft`
+- `report`
+- `reconcile`
+
+Regla: la IA no debe editar a mano `.wodlie-config/*.json`, `progress.*`, `state.json` ni eventos si existe un comando del engine para ese cambio.
+
+## Otros comandos
+
+| Comando | Estado | Nota |
+|---|---|---|
+| `ssh:verify` | `implemented` | valida SSH básico con la ficha del proyecto |
+| `export` | `implemented` | genera artefactos de export |
+| `purge` | `implemented` | remueve el engine del proyecto |
+| `module:add` | `guided` | copia carpetas; no resuelve compatibilidad |
+| `module:remove` | `guided` | flujo parcial |
+| `deploy` | `guided` | imprime pasos; no despliega por sí mismo |
+| `deliver` | `guided` | no cierra una entrega end-to-end |
+| `reimport` | `planned` | no rehidrata un proyecto de cliente todavía |
+| `upgrade` | `planned` | sin aplicación real del upgrade completo |

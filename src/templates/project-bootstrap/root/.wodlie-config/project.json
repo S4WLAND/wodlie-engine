@@ -1,0 +1,41 @@
+{
+  "project": "{{PROJECT_NAME}}",
+  "active": true,
+  "domain": "{{DOMAIN}}",
+  "acme_email": "{{EMAIL}}",
+  "contract": {
+    "type": "{{CONTRACT_TYPE}}",
+    "history": [
+      { "type": "{{CONTRACT_TYPE}}", "started": "{{DATE}}", "ended": null }
+    ]
+  },
+  "project_profile": {
+    "type": "{{PROJECT_TYPE}}",
+    "size": "{{PROJECT_SIZE}}"
+  },
+  "hosting_type": "{{INFRA_TYPE}}",
+  "capabilities": [],
+  "infra_details": {
+    "provider": "{{INFRA_PROVIDER}}",
+    "plan": "{{INFRA_PLAN}}",
+    "region": "{{INFRA_REGION}}",
+    "server_os": "{{INFRA_SERVER_OS}}",
+    "cpu": "{{INFRA_CPU}}",
+    "ram": "{{INFRA_RAM}}",
+    "disk": "{{INFRA_DISK}}",
+    "ssh_host": "{{INFRA_SSH_HOST}}",
+    "ssh_user": "{{INFRA_SSH_USER}}",
+    "notes": "{{INFRA_NOTES}}"
+  },
+  "stack": "{{PROJECT_STACK}}",
+  "apps": {
+    "backend": "backend-api",
+    "frontend_public": "frontend-public",
+    "frontend_admin": "frontend-admin"
+  },
+  "service_modes": {
+    "backend_api": "{{BACKEND_API_MODE}}",
+    "frontend_public": "{{FRONTEND_PUBLIC_MODE}}",
+    "frontend_admin": "{{FRONTEND_ADMIN_MODE}}"
+  }
+}

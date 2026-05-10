@@ -1,131 +1,92 @@
 # @s4wland/wodlie-engine
 
-> Engine CLI para proyectos greenfield con modelo canónico de negocio, eventos y artefactos derivados.
-> El estado estructural se gobierna desde comandos del engine; la IA asiste, pero no escribe a mano los artefactos sensibles.
+CLI para proyectos greenfield con modelo canónico de negocio, eventos y artefactos derivados.
 
 ## Estado actual
 
-- Base implementada:
-  - `init` para generar un proyecto `node-fastify`
-  - modelo canónico en `.wodlie-config/`
-  - comandos de negocio para épicos, historias, estados y pivots
-  - eventos en `.wodlie-config/events.jsonl`
-  - sincronización de `overview.md`, `progress.*`, `state.json` y reportes semanales
-- No implementado todavía:
-  - servidor MCP
-  - reconciliación avanzada de drift
-  - portabilidad agentica real de módulos entre proyectos
-  - despliegue automático end-to-end
-  - upgrade/reimport/deliver automáticos
+- `init` compone proyectos desde un bootstrap híbrido por servicio
+- `.wodlie-config/` gobierna negocio, arquitectura y eventos
+- negocio, métricas y reportes semanales ya sincronizan desde la CLI
+- `.infra/` ya trae Docker local `dev/test`, env sync y runbooks
+- no existe MCP en este repositorio
+- `deploy`, `deliver`, `reimport` y `upgrade` siguen siendo flujos guiados o parciales
 
-## Instalación local
+## Presets de `init`
 
-El repositorio está pensado para desarrollo local del engine.
+Cada proyecto nuevo siempre incluye:
 
-### Prerrequisitos
+- `.business/`
+- `.infra/`
+- `.dev/`
+- `.core/`
+- `.github/`
+- `.wodlie-config/`
 
-- Node.js >= 20.0.0
-- Git
-- npm
+Cada servicio se elige por separado:
 
-### Instalar dependencias
+| Servicio | Modos |
+|---|---|
+| `backend-api` | `neutral` o `fastify` |
+| `frontend-public` | `neutral` o `nextjs` |
+| `frontend-admin` | `neutral` o `nextjs` |
+
+`neutral` deja estructura y documentación, pero no un runtime listo.
+
+## Instalación local del engine
 
 ```bash
 npm install
-```
-
-### Verificar build y smoke tests
-
-```bash
 npm run build
 npm run test:run
 ```
 
-### Usar la shell interactiva
+## Uso rápido
 
 ```bash
-wodlie-engine
-```
-
-La shell abre una consola en árbol:
-- `Business > Epics` para crear, buscar, editar, pivotar y archivar épicos
-- `Business > Stories` para crear, buscar, editar, cambiar estado y completar historias
-- `Infra` para editar la ficha técnica y regenerar documentación de infraestructura
-- `Reports` para reportes semanales
-- `Project` para init, status y health
-
----
-
-## Uso rápido del engine
-
-```bash
-# Abrir shell interactiva
-wodlie-engine
-
-# O crear nuevo proyecto en modo directo
 wodlie-engine init mi-proyecto
-
-# Ver estado del proyecto
 cd mi-proyecto
+npm run env:sync
 wodlie-engine status
-
-# Crear épico e historia canónicos con serial autogenerado
-wodlie-engine business:epic:create "Onboarding"
-wodlie-engine business:story:create EP-001 "Registrar brief" --as operador --want "capturar el brief" --so-that "arrancar con contexto"
-
-# Marcar avance desde DEV
-wodlie-engine dev:story:complete US-001
-
-# Generar borrador de reporte semanal
-wodlie-engine report:draft
 ```
 
----
+Si elegiste `backend-api=fastify`, `frontend-public=nextjs` y `frontend-admin=nextjs`, también queda preconfigurado:
+
+```bash
+npm run dev:up
+npm run test:up
+```
+
+Si algún servicio quedó en `neutral`, esos comandos fallan temprano con un mensaje guiado hasta que completes o adaptes el stack real.
+
+## Shell interactiva
+
+```bash
+wodlie-engine
+```
+
+Menús principales:
+
+- `Business`
+- `Infra`
+- `Reports`
+- `Project`
 
 ## Documentación
 
 | Documento | Descripción |
 |---|---|
-| [Getting Started](docs/getting-started.md) | Flujo real de instalación y primer proyecto |
-| [Comandos](docs/commands.md) | Estado exacto de cada comando |
-| [Templates](docs/templates.md) | Qué genera hoy el template y qué no |
-| [Agentes](docs/agents.md) | Cómo debe trabajar la IA con el engine actual |
-| [Deploy](docs/deployment.md) | Estado real del flujo de deploy |
-| [Current State](docs/current-state.md) | Qué está implementado y qué falta para la visión completa |
-| [Philosophy](docs/philosophy.md) | Filosofía objetivo y gap contra el estado real |
+| [Getting Started](docs/getting-started.md) | flujo real de instalación y primer proyecto |
+| [Comandos](docs/commands.md) | estado exacto de cada comando |
+| [Templates](docs/templates.md) | bootstrap actual y presets por servicio |
+| [Agentes](docs/agents.md) | cómo debe operar una IA con el engine |
+| [Deploy](docs/deployment.md) | estado real de `deploy`, Docker local y promoción |
+| [Current State](docs/current-state.md) | qué está implementado y qué sigue pendiente |
+| [Philosophy](docs/philosophy.md) | visión general del framework |
 
 ## Regla de uso
 
 Los artefactos estructurados que impactan estado, métricas o eventos no se escriben a mano.
 La IA o el operador deben usar comandos del engine.
-MCP todavía no está implementado en este repositorio.
-
-## Generación selectiva
-
-Durante `init`, el engine pregunta por:
-- tipo de proyecto
-- tamaño
-- stack
-- infraestructura
-- capabilities
-
-Y luego conserva solo la selección aplicada para:
-- carpeta de infraestructura (`vps`, `hosting` o `cloud`)
-- perfil general del proyecto
-- tamaño seleccionado
-- documentación base y metadatos de infra
-
----
-
-## Stack soportado
-
-| Stack | Estado |
-|---|---|
-| node-fastify | implementado |
-| python-fastapi | no implementado |
-| go-gin | no implementado |
-
----
 
 ## Licencia
 
