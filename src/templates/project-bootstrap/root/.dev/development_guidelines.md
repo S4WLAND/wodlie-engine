@@ -1,30 +1,33 @@
-# Development Guidelines — Stack node-fastify
+# Development Guidelines — {{PROJECT_STACK}}
 
 Documento técnico de referencia para todo el código de `.dev/`. Estándares, patrones y convenciones obligatorios.
 
 > Aplicar en cualquier tarea de código (frontend o backend).
 > Para el router de capa y la sección "código entendible para humanos", ver `.dev/AGENTS.md`.
+> Los ejemplos de código usan TypeScript como lenguaje de referencia. Adaptar convenciones de tipado, naming y tooling al stack real del proyecto.
 
 ---
 
 ## 1. Stack canónico
 
+> Completar esta tabla al inicializar el proyecto. El preset elegido en `wodlie-engine init` define el stack base; ajustar versiones y capas según el contrato y las decisiones técnicas del proyecto.
+
 | Capa | Tecnología |
 |---|---|
-| Backend | Node.js 20 + Fastify 4 + TypeScript 5 |
-| ORM | Drizzle ORM + drizzle-kit |
-| Base de datos | PostgreSQL 16 |
-| Frontend | Next.js 14 (App Router) + TypeScript 5 |
-| Estado cliente | Zustand 4 |
-| Datos remotos | TanStack React Query 5 |
-| Estilos | CSS Modules + tokens.css |
-| Tests unit | Vitest 1 |
-| Tests E2E | Playwright |
-| Queue | Graphile Worker (default) / BullMQ (Redis) |
-| Cache | In-memory (default) / ioredis |
-| HTTP cliente | Axios 1 |
-| Logger | Pino 8 |
-| Validación schemas | Zod 3 |
+| Backend | {{BACKEND_STACK}} |
+| ORM / acceso a datos | {{ORM_STACK}} |
+| Base de datos | {{DB_STACK}} |
+| Frontend | {{FRONTEND_STACK}} |
+| Estado cliente | {{STATE_MANAGEMENT}} |
+| Datos remotos | {{DATA_FETCHING}} |
+| Estilos | {{STYLES_APPROACH}} |
+| Tests unit | {{UNIT_TEST_FRAMEWORK}} |
+| Tests E2E | {{E2E_TEST_FRAMEWORK}} |
+| Queue | {{QUEUE_STACK}} |
+| Cache | {{CACHE_STACK}} |
+| HTTP cliente | {{HTTP_CLIENT}} |
+| Logger | {{LOGGER}} |
+| Validación schemas | {{VALIDATION_LIBRARY}} |
 
 ---
 
@@ -128,11 +131,20 @@ export class CreateUserUseCase {
   }
 }
 
+// index.ts — módulo registrado como plugin de Fastify
+// La composición ocurre UNA SOLA VEZ al registrar el plugin, no por request
+export default fp(async (app: FastifyInstance) => {
+  const mod = createUsersModule()           // ← instanciado aquí, una vez
+  await registerRoutes(app, mod)            // ← mod pasado por closure
+})
+
 // http/controller.ts (thin — sin lógica de negocio)
-export async function createUser(req: FastifyRequest, reply: FastifyReply) {
-  const usersModule = createUsersModule()
-  const user = await usersModule.createUser.execute(req.body)
-  return reply.code(201).send({ data: user })
+// El módulo llega por parámetro desde el plugin, no se instancia aquí
+export function createUserController(mod: UsersModuleApi) {
+  return async (req: FastifyRequest, reply: FastifyReply) => {
+    const user = await mod.createUser.execute(req.body)
+    return reply.code(201).send({ data: user })
+  }
 }
 ```
 
@@ -182,25 +194,39 @@ styles/                      ← base del documento (tokens.css, globals.css)
 
 Regla de pertenencia: si una pieza de código la usan dos o más módulos, va a `shared/`. Si la usa solo uno, va dentro del módulo. `shared/hooks/` y `shared/utils/` se crean cuando aparece el primer caso real, no antes.
 
-### Comunicación cross-module via Zustand
+### Comunicación cross-module via estado compartido
+
+Un módulo **nunca** importa el store de otro módulo. El estado transversal vive en `shared/store/` y cualquier módulo lo lee desde ahí.
 
 ```typescript
-// modules/auth/store/index.ts
-export const useAuthStore = create<AuthState>()((set) => ({
-  user: null,
-  setUser: (user) => set({ user }),
-}))
-
-// modules/dashboard/hooks/useCurrentUser.ts
+// ❌ Incorrecto — import cross-module
 import { useAuthStore } from '@/modules/auth/store'
+
+// ✅ Correcto — import desde shared/
+import { useAuthStore } from '@/shared/store/auth'
+
 export function useCurrentUser() {
   return useAuthStore((state) => state.user)
 }
 ```
 
+**Criterio para shared/store vs módulo:**
+- `shared/store/` → estado que más de un módulo necesita leer o escribir (auth, theme, ui global)
+- `modules/<X>/store/` → estado privado del módulo (formularios, filtros de tabla, selección UI interna)
+- Si solo un módulo lo usa → dentro del módulo. Si dos o más → shared/store/
+
 ---
 
 ## 6. CSS Modules y design tokens
+
+### Enfoque por tipo de frontend
+
+Cuando el proyecto tiene múltiples frontends, el enfoque de estilos puede diferir entre ellos. Documentar la decisión aquí al inicializar. Ejemplo común:
+
+- **Frontend público:** CSS Modules + tokens.css. Sin librerías de componentes.
+- **Frontend admin:** Puede usar una librería de componentes (ej. shadcn/ui + Tailwind) cuando los requisitos de UI complejos (Command Palette, DataTable, Charts, Date Picker) justifican el costo. Los tokens del proyecto se mapean como variables de la librería para mantener coherencia visual. Documentar la excepción y sus límites.
+
+Si se usa una librería de componentes en el admin, los componentes se deben copiar al proyecto (no son dependencia runtime) y deben seguir usando los tokens del proyecto.
 
 `tokens.css` es la única fuente de verdad visual. Nunca hardcodear colores, espaciados, radios ni tipografías.
 
@@ -262,6 +288,84 @@ export function useCurrentUser() {
 - Animaciones decorativas: alternativa con `prefers-reduced-motion`
 - En mobile el diseño puede cambiar la composición respecto a desktop si mejora claridad, uso táctil o conversión
 - Regla de criterio: diseñar para mobile primero, no “comprimir desktop” en pantallas pequeñas
+
+### Orden de propiedades dentro de una regla CSS
+
+Seguir siempre este orden:
+
+```css
+.elemento {
+  /* 1. Posicionamiento */
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+
+  /* 2. Box model / display */
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 48px;
+  margin: 0;
+  padding: var(--space-4) var(--space-6);
+  overflow: hidden;
+
+  /* 3. Visual */
+  background: var(--color-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+
+  /* 4. Tipografía */
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+
+  /* 5. Misc */
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+```
+
+### Patrón DRY: clase base + variante
+
+Para componentes con múltiples variantes (botones, cards, badges), usar clase base + variantes en el módulo. No duplicar propiedades compartidas.
+
+**Dónde vive cada cosa:**
+
+| Qué | Dónde |
+|---|---|
+| Valores visuales (colores, radios, sombras) | `src/styles/tokens.css` |
+| Reset + document base | `src/styles/globals.css` |
+| Primitivas UI reutilizables (`.btn`, `.surface`) | `src/styles/utilities.css` |
+| Componentes específicos de un módulo | `modules/<nombre>/styles/` |
+| Sobreescrituras contextuales | Dentro del selector del módulo |
+
+### Dark mode (cuando aplique)
+
+Si el proyecto requiere dark mode, usar `data-theme` attribute en `<html>`. Los tokens se redefinen en el scope del atributo — mismo nombre de variable, valor distinto. Ningún componente necesita saber en qué tema está.
+
+```css
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #f5f5f5;
+}
+
+[data-theme="dark"] {
+  --color-bg: #0f0f0f;
+  --color-surface: #1a1a1a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0f0f0f;
+    --color-surface: #1a1a1a;
+  }
+}
+```
+
+**Convención:** nunca crear `--color-bg-dark`. El mismo token se redefine en el scope.
 
 ### Reglas de diseño
 
@@ -556,7 +660,9 @@ npm run db:push        # push directo (solo development)
 npm run db:studio      # UI para explorar la DB
 ```
 
-**Regla:** nunca modificar la base de datos directamente. Siempre vía `drizzle-kit`.
+**Regla:** nunca modificar la base de datos directamente. Siempre vía el CLI del ORM o la herramienta de migraciones del proyecto.
+
+**Regla command-first:** primero usar scripts del proyecto o CLI oficial de la librería para scaffold, introspección, migraciones, sync o validación; después ajustar manualmente solo los archivos que la herramienta deja como base. Si la librería no genera la estructura necesaria, crear la mínima estructura manual respetando la arquitectura del proyecto.
 
 ---
 
@@ -643,12 +749,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 - Imágenes con `alt` descriptivo (vacío `alt=""` solo en decorativas con `aria-hidden="true"`)
 - URLs públicas en inglés, con guiones, sin mayúsculas ni caracteres especiales
 - Cuando el negocio opere local o regionalmente, orientar el SEO a la geografía real del servicio
-- Para My Project, priorizar combinaciones de marca + intención + ubicación:
-  - `My Project`
-  - `main service`
-  - `service category`
-  - `city`
-  - `region`
+- Para cada proyecto, definir combinaciones de marca + intención + ubicación según el nicho y la geografía del cliente. Documentar las keywords prioritarias aquí al inicializar.
 - Evitar keyword stuffing: distribuir términos entre `title`, `description`, headings, copy, alt, JSON-LD y rutas cuando aplique
 
 ### Archivos raíz requeridos
@@ -851,7 +952,20 @@ export default function GlobalError({ error, reset }: ErrorProps) {
 
 ---
 
-## 19. No sobreingeniería
+## 19. Sin duplicación de animaciones y efectos visuales
+
+Cuando se cambia el enfoque de una animación o efecto (CSS → JS, JS → CSS, librería → nativo), **eliminar la implementación anterior antes de agregar la nueva**. Dos implementaciones del mismo efecto compiten, se sobrecargan mutuamente y producen comportamiento impredecible.
+
+**Regla:** una animación, un lugar, un enfoque. Si cambiás el enfoque:
+1. Eliminar el bloque anterior (CSS, JS o librería)
+2. Agregar el nuevo
+3. Verificar en el browser que no quede ninguna versión residual activa
+
+Aplica especialmente a: `transition`, `animation`, `@keyframes`, scroll listeners, `will-change`, librerías de animación, y cualquier efecto que opere sobre `transform`, `opacity` o `filter`.
+
+---
+
+## 19b. No sobreingeniería
 
 **No hacer:**
 - Funcionalidades no solicitadas
@@ -870,33 +984,346 @@ export default function GlobalError({ error, reset }: ErrorProps) {
 
 ## 20. Convenciones de commits
 
+> Prohibiciones base definidas en `AGENTS.md` raíz: sin co-autor IA, sin commit sin pedido explícito del operador, sin push sin instrucción. Estas reglas aplican en toda la capa dev sin excepción.
+
+Tipos base (del root): `feat`, `fix`, `docs`, `chore`, `refactor`, `test`
+Tipos extendidos para dev: `style` (formato, espacios, orden de propiedades), `perf` (mejora de rendimiento medible con datos)
+
 ```
 feat(<scope>):     nueva funcionalidad
 fix(<scope>):      bug fix
 refactor(<scope>): refactor sin cambio funcional
 docs(<scope>):     cambios de documentación
-test(<scope>):     agregar/modificar tests
-style(<scope>):    formato (espacios, comas)
+test(<scope>):     agregar o modificar tests
+style(<scope>):    formato (espacios, comas, orden)
 chore(<scope>):    mantenimiento (deps, configs)
-perf(<scope>):     mejora de performance
+perf(<scope>):     mejora de rendimiento medible
 ```
 
-Scope: `dev/<modulo>`, `dev/shared`, `business/...`, `infra/...`.
+Scope: refleja la capa y el módulo afectado.
 
-Ejemplos reales:
 ```
-feat(dev/status): add social link deep linking support
-fix(dev/middleware): redirect authenticated users away from login
-refactor(dev/shared): extract site config to centralized module
-docs(dev/frontend-public): add JSDoc to all shared components
-test(dev/app-aware-link): add unit tests for deep link resolution
+dev/<modulo>       dev/backend-api, dev/frontend-public, dev/frontend-admin
+dev/shared         cambios transversales a toda la capa dev
+```
+
+Ejemplos:
+```
+feat(dev/appointments): add slot availability endpoint
+fix(dev/frontend-public): correct navbar scroll threshold
+docs(dev/backend-api): document auth module use-cases
+refactor(dev/shared): extract date formatting to utility
+perf(dev/appointments): add index on scheduled_at column
+style(dev/frontend-public): normalize CSS property order in hero
 ```
 
 Commits pequeños y frecuentes — no esperar a tener todo terminado.
 
 ---
 
-## 21. Checklist post-desarrollo
+## 21. Estructuras de datos y rendimiento
+
+> Elegir la estructura correcta no es maximizar notaciones Big-O — es entender cómo se va a acceder al dato y elegir la herramienta que mejor sirve ese patrón.
+
+La notación Big-O describe crecimiento asintótico, no rendimiento absoluto. Para conjuntos pequeños, `Array.find()` puede ser más rápido que un `Map` en la práctica por cache locality. La pregunta correcta no es "¿cuál tiene mejor notación?" sino **"¿cuál es la operación que se realiza con más frecuencia sobre estos datos?"**
+
+| Patrón de acceso dominante | Estructura adecuada | Por qué |
+|---|---|---|
+| Lookup por clave arbitraria | `Map` / `Record` / `dict` | Hash directo, sin recorrer el conjunto |
+| Verificar si un elemento existe | `Set` | Hash, sin guardar valor asociado |
+| Iterar todos en orden | `Array` / `List` | Contiguo en RAM, CPU prefetch óptimo |
+| Acceder al siguiente o anterior | `Array` | Vecindad garantizada en memoria |
+| Lookup sobre N grande con acceso aleatorio | `Map` | Escala sin degradación cuando el costo de heap disperso se amortiza |
+
+```typescript
+// Dropdown de 20 categorías — siempre se itera completo para renderizar
+// Array: iteración contigua, find() sobre N=20 es negligible
+const categories: Category[] = [...]
+const found = categories.find(c => c.slug === slug)
+
+// 80K usuarios buscados por ID en cada request autenticado
+// Map: N justifica el overhead; el lookup aleatorio por clave es el patrón
+const userIndex = new Map(users.map(u => [u.id, u]))
+const user = userIndex.get(requestedId)
+```
+
+Si se construye un índice en memoria para un dataset estable, construirlo una sola vez al inicializar el módulo — no en cada llamada.
+
+Cuando no hay solución óptima clara:
+- **Hot path** (cada request de usuario): sacrificar memoria antes que CPU o disco
+- **Cold path** (workers, jobs en background): disco y tiempo de CPU no son críticos
+- **Caché**: acotar siempre con TTL y tamaño máximo — sin límite es un memory leak por diseño
+
+---
+
+## 22. Indexado de base de datos
+
+Al diseñar un schema, pensar en qué queries va a recibir la tabla y qué columnas aparecerán en `WHERE`, `JOIN` u `ORDER BY`. Un índice ausente es un problema de rendimiento silencioso; un índice innecesario es espacio y escrituras extra sin beneficio.
+
+| Tipo de acceso | Índice a considerar |
+|---|---|
+| Equality lookup frecuente (`WHERE col = ?`) | B-Tree (default) o HASH (solo equality) |
+| Rango o sort (`BETWEEN`, `>`, `ORDER BY`) | B-Tree |
+| Unicidad (`email`, `slug`, `token`) | UNIQUE — también actúa como constraint de integridad |
+| FK referenciada en JOINs frecuentes | B-Tree explícito — la mayoría de ORMs no los crean automáticamente |
+
+**Regla:** definir índices desde la migration-0 para columnas que soportarán los patrones de acceso del MVP. No dejar indexado para "después de que se noten problemas".
+
+---
+
+## 23. Caché in-memory
+
+La caché tiene sentido cuando un dato se lee con frecuencia y cambia poco. No tiene sentido para datos transaccionales o que deben reflejar el estado más reciente en cada operación.
+
+```typescript
+// Patrón cache-aside: leer caché primero, poblar desde DB si falta
+export class GetServiceCatalogUseCase {
+  constructor(private repo: ServiceRepository, private cache: CacheAdapter) {}
+
+  async execute(): Promise<ServiceCategory[]> {
+    const cached = await this.cache.get<ServiceCategory[]>('service:catalog')
+    if (cached) return cached
+    const services = await this.repo.findAllActive()
+    await this.cache.set('service:catalog', services, 300) // TTL 5 min
+    return services
+  }
+}
+
+// Invalidar cuando el dato cambia
+async execute(input: UpdateServiceInput) {
+  const updated = await this.repo.update(input)
+  await this.cache.delete('service:catalog')
+  return updated
+}
+```
+
+Siempre usar adaptadores intercambiables: in-memory (default) y Redis (múltiples instancias o persistencia). El cambio de adapter se hace vía env — sin modificar código de negocio.
+
+---
+
+## 24. DTOs y Value Objects
+
+Aplicar cuando agregan claridad o seguridad real, no por convención en todos lados.
+
+Un **DTO** tiene sentido cuando la entidad de DB contiene campos que no deben exponerse, o cuando el contrato de la API tiene forma distinta al modelo interno.
+
+```typescript
+// ❌ Expone todo el row incluyendo campos sensibles
+return reply.send(await this.repo.findById(id))
+
+// ✅ Contrato explícito — solo lo que el cliente debe ver
+export class UserResponseDTO {
+  constructor(private user: UserEntity) {}
+  toJSON() {
+    return { id: this.user.id, fullName: `${this.user.firstName} ${this.user.lastName}`, email: this.user.email, role: this.user.role }
+  }
+}
+```
+
+Un **Value Object** tiene sentido cuando un tipo primitivo tiene invariantes propias que se repetirían en múltiples lugares.
+
+```typescript
+// ❌ Validación dispersa en cada use-case que recibe un teléfono
+// ✅ Validación una sola vez, comportamiento centralizado
+export class PhoneNumber {
+  private readonly value: string
+  constructor(raw: string) {
+    const digits = raw.replace(/\D/g, '')
+    if (digits.length < 8 || digits.length > 15) throw new ValidationError('Teléfono inválido')
+    this.value = digits
+  }
+  toE164(country = '54') { return `+${country}${this.value}` }
+}
+```
+
+| Patrón | Cuándo | Dónde |
+|---|---|---|
+| DTO de response | Entidad de DB ≠ contrato público de API | `http/controller.ts` |
+| DTO de input | Input necesita normalización antes del use-case | `http/contract.ts` |
+| Value Object | Concepto con invariantes propias (email, phone, money) | `domain/` |
+
+---
+
+## 25. Asincronía y operaciones no bloqueantes
+
+En entornos de ejecución single-threaded (Node.js, browser), cualquier operación que bloquea el hilo principal pausa el procesamiento de todos los requests simultáneos.
+
+```typescript
+// ❌ Bloquea el hilo
+const config = fs.readFileSync('config.json')
+
+// ✅ Cede el hilo
+const config = await fs.promises.readFile('config.json', 'utf-8')
+
+// Operaciones independientes en paralelo
+// ❌ Serial: total = suma de todas las latencias
+for (const id of ids) { await notify(id) }
+
+// ✅ Paralelo: total ≈ latencia máxima
+await Promise.all(ids.map(id => notify(id)))
+
+// Con límite si el destino tiene rate limiting
+const limit = pLimit(10)
+await Promise.all(ids.map(id => limit(() => notify(id))))
+```
+
+Para CPU-intensivo (resize de imágenes, generación de PDFs, cálculos sobre datasets grandes), usar workers. Para procesos diferibles, usar la queue — responder inmediatamente con 202 y procesar en background.
+
+---
+
+## 26. Race conditions e idempotencia
+
+### Race conditions
+
+Ocurren cuando dos operaciones concurrentes leen el mismo estado, toman una decisión basada en él, y ambas escriben sin conocer la acción de la otra.
+
+```typescript
+// ❌ Race condition: dos requests pueden pasar el if simultáneamente
+const existing = await repo.findBySlot(date, professionalId)
+if (existing) throw new ConflictError('Horario ocupado')
+await repo.create({ date, professionalId, patientId })
+
+// ✅ Unique constraint en DB como red de seguridad final
+// uniqueIndex('idx_appointments_slot').on(table.professionalId, table.scheduledAt)
+// El repo captura la violación y la traduce a ConflictError
+
+// ✅ Transacción con lock pesimista para secciones críticas
+await db.transaction(async (tx) => {
+  const slot = await tx.select().from(slots).where(eq(slots.id, slotId)).for('update')
+  if (slot[0].isBooked) throw new ConflictError('Horario ocupado')
+  await tx.update(slots).set({ isBooked: true }).where(eq(slots.id, slotId))
+})
+```
+
+### Idempotencia
+
+Una operación es idempotente cuando ejecutarla N veces produce el mismo resultado que ejecutarla una sola vez. Fundamental para: pagos, notificaciones, jobs de queue, webhooks de servicios externos.
+
+```typescript
+// ❌ Sin idempotencia — un retry de red puede cobrar dos veces
+await paymentGateway.charge({ amount, userId })
+
+// ✅ Idempotency key — el gateway deduplica requests con el mismo identificador
+await paymentGateway.charge({ amount, userId, idempotencyKey: `payment:${orderId}` })
+```
+
+Pensar en idempotencia al diseñar endpoints de creación, jobs de queue, webhooks y formularios que pueden hacer submit múltiple.
+
+---
+
+## 27. Formato de respuesta API
+
+Todas las respuestas siguen la misma estructura. Consistencia facilita el consumo desde cualquier cliente y el manejo de errores en el frontend.
+
+```typescript
+// Recurso único — 200 OK
+{ data: T }
+
+// Lista — 200 OK
+{ data: T[] }
+
+// Lista con metadatos de paginación — 200 OK
+{ data: T[], meta: { total: number } }
+
+// Creación — 201 Created
+{ data: T }
+
+// Sin contenido — 204 No Content (sin body)
+
+// Error — 4xx / 5xx
+{ error: { message: string, code: string, statusCode: number } }
+```
+
+No construir `{ error: ... }` manualmente en controllers — lanzar desde use-case y dejar que el error handler global normalice la estructura.
+
+---
+
+## 28. Fechas y zonas horarias
+
+**Estándar del proyecto:** UTC en almacenamiento y transporte, zona local solo en presentación al usuario.
+
+```typescript
+// En DB: usar tipos con timezone (timestamptz en PostgreSQL)
+// El ORM almacena UTC, convierte automáticamente
+
+// En API: ISO 8601 — parseable en cualquier lenguaje, timezone explícita
+return reply.send({ data: { scheduledAt: appointment.scheduledAt.toISOString() } })
+// resultado: "2024-01-15T13:30:00.000Z"
+
+// ❌ Evitar en API
+appointment.scheduledAt.toLocaleDateString()  // timezone implícita del servidor
+
+// En frontend: Intl.DateTimeFormat con locale y timezone explícitos
+new Intl.DateTimeFormat('es-AR', {
+  dateStyle: 'long',
+  timeStyle: 'short',
+  timeZone: 'America/Argentina/Buenos_Aires',
+}).format(new Date(scheduledAt))
+```
+
+Nunca construir strings de fecha manualmente (`${day}/${month}/${year}`). Para operaciones con fechas (diferencias, suma de días, comparaciones), evaluar una librería de fechas antes de implementar con `Date` nativo — las edge cases de meses y años bisiestos son silenciosas.
+
+---
+
+## 29. Logging
+
+El mismo código corre en todos los entornos. La variable `LOG_LEVEL` controla qué se emite — no hace falta eliminar logs de debug para producción, solo configurar el nivel correcto.
+
+| Nivel | Cuándo usar |
+|---|---|
+| `debug` | Valores intermedios, trazas de flujo — solo útil en desarrollo |
+| `info` | Eventos operacionales: recurso creado, pago procesado, job completado |
+| `warn` | Situación inesperada pero manejada: retry automático, fallback activado |
+| `error` | Error capturado que afecta la operación |
+| `fatal` | Error irrecuperable — el proceso debería terminar |
+
+```
+LOG_LEVEL=debug  → desarrollo (todos los niveles, pretty-print para legibilidad)
+LOG_LEVEL=warn   → test (silencia info/debug, solo problemas)
+LOG_LEVEL=info   → producción (operacional, JSON estructurado)
+```
+
+```typescript
+// ❌ String concatenado — no se puede filtrar ni indexar
+logger.info(`Usuario ${userId} creó turno ${appointmentId}`)
+
+// ✅ Objeto estructurado — filtrable, indexable, parseable por agregadores
+logger.info({ userId, appointmentId }, 'Turno creado')
+logger.error({ err, orderId }, 'Error al procesar pago')
+```
+
+Nunca loguear datos sensibles: passwords, tokens, números de tarjeta, datos personales en claro.
+
+---
+
+## 30. Decisiones que requieren análisis o confirmación del operador
+
+Estas decisiones dependen del contexto de negocio. Al encontrar uno de estos casos: analizar el contexto del módulo, proponer una recomendación con su trade-off, y confirmar con el operador antes de implementar.
+
+**Paginación — offset vs cursor**
+Offset es simple y suficiente para volúmenes moderados y datos estables. Cursor es consistente ante inserciones concurrentes y escala mejor, pero es más complejo. Analizar volumen esperado y patrón de la interfaz (listado paginado vs scroll infinito) y recomendar.
+
+**Soft deletes vs borrado físico**
+`deletedAt` timestamp permite recuperación y auditoría pero complica todas las queries. Borrado físico es más simple pero irreversible. Depende de si el negocio requiere historial o recuperación — confirmar con el operador.
+
+**Campos de auditoría** (`createdAt`, `updatedAt`, `createdBy`)
+Útiles para trazabilidad. No todas las tablas los necesitan con la misma granularidad. Evaluar tabla por tabla según requerimientos de auditoría del módulo.
+
+**Retry logic y circuit breaker para servicios externos**
+Necesario cuando el servicio externo es crítico y puede fallar transitoriamente. Analizar criticidad y SLA del proveedor — implementar solo donde el costo de fallo justifique la complejidad.
+
+**Versionado de API**
+No versionar prematuramente — añade overhead. Versionar cuando hay clientes externos que no se pueden actualizar simultáneamente. Siempre confirmar con el operador; la decisión depende de si hay contratos públicos que el equipo no controla.
+
+**Seeding de base de datos**
+La estrategia de datos iniciales (fixtures, factories, scripts) depende de qué tan estables son los datos de referencia y cuántos entornos los necesitan. Definir en el primer módulo productivo — confirmar estrategia con el operador.
+
+**Rate limiting por endpoint**
+Los thresholds dependen del perfil de uso: un endpoint público de login tiene límites distintos a uno interno de consulta. Configurar con criterio por ruta — confirmar umbrales con el operador cuando el endpoint tenga requisitos específicos.
+
+---
+
+## 31. Checklist post-desarrollo
 
 Antes de considerar una tarea "terminada":
 
@@ -912,3 +1339,42 @@ Antes de considerar una tarea "terminada":
 - [ ] Sin logs de debug en producción
 - [ ] Tests agregados o actualizados si aplica
 - [ ] Commit semántico
+
+---
+
+## 32. Cuándo preguntar antes de ejecutar
+
+Cuando una tarea tiene más de un enfoque válido, el agente **no asume** — pregunta primero y espera respuesta antes de ejecutar.
+
+### Situaciones que requieren confirmación obligatoria
+
+**Importación de plantillas o código externo**
+
+Presentar siempre las opciones:
+
+> Hay dos formas de encarar esta importación:
+> 1. **Importar tal cual** → preserva el comportamiento original (animaciones, interacciones, estados); la migración al stack se hace después en una tarea separada.
+> 2. **Importar y adaptar en una sola operación** → más compacto, pero puede perder comportamientos que solo se entienden ejecutando la plantilla.
+>
+> ¿Cuál preferís?
+
+**Refactor de alcance incierto**
+
+- ¿El cambio aplica solo al componente actual o a todos los que usan el mismo patrón?
+- ¿Se refactoriza el código viejo ahora o en una tarea separada?
+
+**Cambio que afecta diseño y comportamiento al mismo tiempo**
+
+- ¿Se cambia solo el diseño (tokens, variables) o también estructura HTML/componente?
+- ¿Es una migración gradual módulo por módulo, o se aplica todo de una vez?
+
+**Conflicto entre convención del proyecto y código existente**
+
+- Si el código a importar/adaptar viola guidelines, preguntar si se corrige en el mismo paso o se deja como deuda técnica documentada.
+
+### Cómo presentar las opciones
+
+- Máximo 2–3 opciones concretas con su trade-off
+- Una opción recomendada marcada como `(Recomendado)`
+- Nunca ejecutar hasta tener respuesta
+- Si el usuario ya dio contexto suficiente para inferir el enfoque, no preguntar — actuar
