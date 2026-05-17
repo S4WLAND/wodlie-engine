@@ -75,6 +75,8 @@ Si algún servicio sigue en modo `neutral`, `npm run dev:up` y `npm run test:up`
 - Tipos: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`
 - Scope: refleja el directorio o capa afectada (ej: `business/reports`, `business/onboarding`, `dev/backend-api`)
 - **Prohibido agregar al agente IA como co-autor en ningún commit.** No incluir líneas `Co-Authored-By` de agentes.
+- **Prohibido hacer commits sin que el operador lo pida explícitamente.** Aplicar cambios en archivos, confirmar con el operador, y esperar instrucción de commit.
+- **Prohibido hacer push bajo ninguna circunstancia sin instrucción explícita del operador.**
 
 ## Cuándo pedir confirmación humana
 

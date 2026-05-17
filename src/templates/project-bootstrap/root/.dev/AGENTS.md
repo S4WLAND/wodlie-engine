@@ -50,20 +50,32 @@ Detalle completo en `.dev/development_guidelines.md`.
 5 reglas no-negociables. El detalle vive en `development_guidelines.md`.
 
 1. **Código, archivos y carpetas en inglés; comentarios y documentación en español.**
-2. **Nunca `any` en TypeScript.** Usar tipos específicos o `unknown` con type guards.
-3. **`tokens.css` es la única fuente de verdad visual.** Nunca hardcodear colores, espaciados ni tipografías.
+2. **Nunca tipos dinámicos no controlados.** En TypeScript: nunca `any`; usar tipos específicos o `unknown` con type guards. En otros lenguajes: equivalent typing discipline applies.
+3. **La fuente de verdad visual es única.** Nunca hardcodear colores, espaciados ni tipografías fuera del sistema de tokens del proyecto.
 4. **Layouts, pages y controllers siempre delgados.** Lógica de negocio en use-cases (backend) o modules/hooks (frontend).
-5. **Commits convencionales obligatorios.** Formato `tipo(scope): descripción` — ver `development_guidelines.md` §20.
+5. **Commits convencionales obligatorios.** Formato `tipo(scope): descripción`. Las prohibiciones del root aplican sin excepción en dev: sin co-autor IA, sin commit sin pedido explícito del operador, sin push sin instrucción. Ver `AGENTS.md` raíz (sección Commits) y `development_guidelines.md` §20 para tipos y scopes de la capa dev.
 
 Además:
 - La política oficial de breakpoints, responsive mobile-first y SEO público vive en `.dev/development_guidelines.md`
 - La política de nuevas dependencias también vive ahí; no asumir que están prohibidas por defecto
+- **No iniciar servidores long-running** (`npm run dev`, `npm run dev:up`, `npm run test:up` o similares) salvo pedido explícito del operador; si el operador ya tiene el entorno levantado, limitarse a validar con comandos finitos como lint, typecheck o build.
 
 ---
 
 ## Código entendible para humanos
 
-**Tesis.** Balance entre limpio + escalable + óptimo + entendible. Cuando entran en conflicto, el orden de prioridad es: **correcto > entendible > limpio > óptimo**. La optimización prematura que sacrifica legibilidad NO es bienvenida.
+**Tesis.** Tres principios que no se negocian: **velocidad de respuesta** (estructura de datos adecuada al patrón de acceso real, I/O no-bloqueante, índices donde las queries lo justifican), **legibilidad vía abstracción apropiada** (DTOs, Value Objects, encapsulación — fácil de leer y escribir para el operador), y **modularidad con desacoplamiento** (cada módulo autónomo e intercambiable; se acepta una capa extra de abstracción a cambio de independencia real).
+
+Cuando entran en conflicto, el orden de prioridad es:
+
+| # | Principio | Descripción |
+|---|---|---|
+| 1 | **Correcto** | El código hace lo que debe — prerrequisito no negociable |
+| 2 | **Modular y desacoplado** | Independencia entre módulos; una capa extra de abstracción es aceptable si compra autonomía real |
+| 3 | **Performante por diseño** | Elegir la estructura más eficiente para el **patrón de acceso real** — no maximizar Big-O en abstracto. I/O siempre async. Índices desde el primer schema. |
+| 4 | **Legible vía abstracción** | DTOs, Value Objects, encapsulación; el código expresa el dominio, no los detalles de implementación |
+| 5 | **Limpio** | Conciso, sin duplicación, sin magia innecesaria |
+| 6 | **Micro-optimizado** | Solo con datos de profiling que lo justifiquen |
 
 ### Principios
 
@@ -146,7 +158,7 @@ Además:
    //    if (count > MAX_RETRIES) { ... }
    ```
 
-7. **Optimización solo con medición.** No micro-optimizar sin profile. Si la solución óptima es menos obvia, comentar el porqué.
+7. **Distinguir diseño performante de micro-optimización.** Elegir `Map` sobre `Array` para lookup por clave es diseño correcto, no optimización prematura. Micro-optimizar (bit manipulation, memory pooling, trucos de runtime) sí requiere datos de profiling que lo justifiquen.
 
 8. **Comentar el "por qué", no el "qué".** Si necesitás un comentario explicando QUÉ hace el código → refactorizá. Si necesitás un comentario explicando POR QUÉ, escribilo.
 
