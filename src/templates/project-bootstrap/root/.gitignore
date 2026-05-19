@@ -1,12 +1,45 @@
-# Engine — nunca commitear
+# Engine - nunca commitear
 .core/state.json
 .core/progress.json
+.core/changelog.json
+.wodlie-config/events.jsonl
 **/progress.json
+
+# Variables de entorno - solo .example va en git
+**/.env
+**/.env.local
 **/.env.production
 **/.env.development
 **/.env.test
-node_modules/
-dist/
-.DS_Store
+
+.infra/env/*.env
+!.infra/env/*.example
+.infra/state/
+
+# Dependencias y builds
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+**/out/
+
+# Tests y reportes
+**/coverage/
+**/playwright-report/
+**/test-results/
+
+# Media local generada
+.dev/storage/**
+!.dev/storage/
+!.dev/storage/**/
+!.dev/storage/**/.gitkeep
+
+# TypeScript, logs y sistema operativo
+*.tsbuildinfo
 *.log
-coverage/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+Desktop.ini

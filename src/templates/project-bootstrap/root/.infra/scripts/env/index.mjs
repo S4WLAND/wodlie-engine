@@ -1,10 +1,10 @@
+import { spawn } from 'node:child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
   composeFiles,
   envCatalogFile,
   envDir,
-  legacyPublishEnvFiles,
   rootDir,
   services,
   stackEnvFiles,
@@ -14,28 +14,35 @@ import {
 } from './lib/config.mjs'
 import { ensureFileFromExample, extractEnvKeys, parseEnvContent } from './lib/env-files.mjs'
 import { runCommand } from './lib/shell.mjs'
-import { bold, cyan, dim, fail, gray, green, header, info, ok, red, tag, warn, yellow } from './lib/colors.mjs'
+import { bold, cyan, dim, divider, fail, gray, green, header, info, ok, red, tag, warn, yellow } from './lib/colors.mjs'
 
 const envReferencePattern = /\bprocess\.env\.([A-Z0-9_]+)/g
 const ignoredReferencedEnvKeys = new Set(['CI'])
-const projectConfigFile = path.join(rootDir, '.wodlie-config', 'project.json')
+const testExposeStateFile = path.join(stateDir, 'test-expose-state.json')
+const testOpenStackEnvFile = path.join(envDir, '.tmp.stack.test.open.env')
 
 function printUsage() {
   console.log(`Uso:
-  npm run dev:up
-  npm run dev:down
-  npm run dev:logs -- [service]
-  npm run dev:shell <service>
-  npm run test:up
-  npm run test:down
-  npm run test:logs -- [service]
-  npm run test:shell <service>
-  npm run test:expose
+  npm run dev:up [-- <servicio>]
+  npm run dev:down [-- <servicio>]
+  npm run dev:logs [-- <servicio>]
+  npm run dev:restart [-- <servicio>]
+  npm run dev:shell -- <servicio>
+  npm run test:up [-- <servicio>]
+  npm run test:down [-- <servicio>]
+  npm run test:logs [-- <servicio>]
+  npm run test:restart [-- <servicio>]
+  npm run test:shell -- <servicio>
+  npm run test:open
+  npm run test:expose  # publica el stack test por túnel
   npm run test:close
   npm run env:sync
   npm run env:check
   npm run infra:status
-  npm run infra:ports`)
+  npm run infra:ports
+
+  Sin <servicio>: opera el stack completo.
+  Con <servicio>: opera solo ese contenedor (backend-api, frontend-public, frontend-admin, postgres, redis, media-nginx).`)
 }
 
 function getStackConfig(stackName) {
@@ -51,15 +58,6 @@ async function readEnvFile(filePath) {
   return parseEnvContent(content)
 }
 
-async function readProjectConfig() {
-  try {
-    const content = await fs.readFile(projectConfigFile, 'utf8')
-    return JSON.parse(content)
-  } catch {
-    return null
-  }
-}
-
 async function ensureStackEnvFile(stackName) {
   const stackConfig = getStackConfig(stackName)
   const syncResult = await ensureFileFromExample({
@@ -70,7 +68,7 @@ async function ensureStackEnvFile(stackName) {
   if (syncResult.created) {
     console.log(`  ${ok(gray(path.relative(rootDir, stackConfig.actual)))} ${dim('creado desde example')}`)
   } else if (syncResult.updated) {
-    console.log(`  ${ok(gray(path.relative(rootDir, stackConfig.actual)))} ${dim(`actualizado +${syncResult.addedKeys.length}`)}`)
+    console.log(`  ${ok(gray(path.relative(rootDir, stackConfig.actual)))} ${dim(`actualizado +${syncResult.addedKeys.length}`)}`  )
   }
 
   return stackConfig.actual
@@ -79,15 +77,6 @@ async function ensureStackEnvFile(stackName) {
 async function ensureTestExposeEnvFile() {
   try {
     await fs.access(testExposeEnvFiles.actual)
-    return testExposeEnvFiles.actual
-  } catch {}
-
-  try {
-    await fs.access(legacyPublishEnvFiles.actual)
-    const legacyContent = await fs.readFile(legacyPublishEnvFiles.actual, 'utf8')
-    await fs.mkdir(path.dirname(testExposeEnvFiles.actual), { recursive: true })
-    await fs.writeFile(testExposeEnvFiles.actual, legacyContent, 'utf8')
-    console.log(`  ${ok(dim('migrado'))} ${gray(path.relative(rootDir, legacyPublishEnvFiles.actual))} ${dim('→')} ${gray(path.relative(rootDir, testExposeEnvFiles.actual))}`)
     return testExposeEnvFiles.actual
   } catch {}
 
@@ -110,6 +99,7 @@ function buildManagedEnvOverrides(stackValuesByEnvironment) {
     NODE_ENV: values.BACKEND_RUNTIME_NODE_ENV,
     PORT: values.BACKEND_CONTAINER_PORT,
     HOST: values.BACKEND_RUNTIME_HOST,
+    HTTP2_ENABLED: values.BACKEND_RUNTIME_HTTP2_ENABLED,
     LOG_LEVEL: values.BACKEND_RUNTIME_LOG_LEVEL,
     JWT_SECRET: values.BACKEND_RUNTIME_JWT_SECRET,
     DATABASE_URL: values.BACKEND_RUNTIME_DATABASE_URL,
@@ -119,31 +109,33 @@ function buildManagedEnvOverrides(stackValuesByEnvironment) {
     DB_USER: values.BACKEND_RUNTIME_DB_USER,
     DB_PASSWORD: values.BACKEND_RUNTIME_DB_PASSWORD,
     REDIS_URL: values.BACKEND_RUNTIME_REDIS_URL,
-    MINIO_ENDPOINT: values.BACKEND_RUNTIME_MINIO_ENDPOINT,
-    MINIO_ROOT_USER: values.MINIO_ROOT_USER,
-    MINIO_ROOT_PASSWORD: values.MINIO_ROOT_PASSWORD,
-    MINIO_BUCKET: values.BACKEND_RUNTIME_MINIO_BUCKET,
-    MINIO_PUBLIC_URL: values.BACKEND_RUNTIME_MINIO_PUBLIC_URL,
+    MEDIA_STORAGE_DIR: values.BACKEND_RUNTIME_MEDIA_STORAGE_DIR,
+    MEDIA_PUBLIC_URL: values.BACKEND_RUNTIME_MEDIA_PUBLIC_URL,
+    MEDIA_MAX_IMAGE_WIDTH: values.BACKEND_RUNTIME_MEDIA_MAX_IMAGE_WIDTH,
+    MEDIA_IMAGE_QUALITY: values.BACKEND_RUNTIME_MEDIA_IMAGE_QUALITY,
     ALLOWED_ORIGINS: values.BACKEND_RUNTIME_ALLOWED_ORIGINS,
   })
 
   const buildFrontendPublicOverrides = (values) => ({
     NEXT_PUBLIC_APP_NAME: values.FRONTEND_PUBLIC_RUNTIME_APP_NAME,
     NEXT_PUBLIC_APP_URL: values.FRONTEND_PUBLIC_RUNTIME_APP_URL,
-    NEXT_PUBLIC_API_URL: values.FRONTEND_PUBLIC_RUNTIME_API_URL,
+    NEXT_PUBLIC_ADMIN_URL: values.FRONTEND_PUBLIC_RUNTIME_ADMIN_URL,
+    NEXT_PUBLIC_EXTERNAL_API_URL: values.FRONTEND_PUBLIC_RUNTIME_EXTERNAL_API_URL,
+    INTERNAL_API_URL: values.FRONTEND_PUBLIC_RUNTIME_INTERNAL_API_URL,
     NEXT_PUBLIC_COOKIE_DOMAIN: values.FRONTEND_PUBLIC_RUNTIME_COOKIE_DOMAIN,
     NEXTAUTH_URL: values.FRONTEND_PUBLIC_RUNTIME_NEXTAUTH_URL,
     NEXTAUTH_SECRET: values.FRONTEND_PUBLIC_RUNTIME_NEXTAUTH_SECRET,
-    MINIO_PUBLIC_URL: values.FRONTEND_PUBLIC_RUNTIME_MINIO_PUBLIC_URL,
+    MEDIA_PUBLIC_URL: values.FRONTEND_PUBLIC_RUNTIME_MEDIA_PUBLIC_URL,
     PLAYWRIGHT_BASE_URL: values.FRONTEND_PUBLIC_RUNTIME_PLAYWRIGHT_BASE_URL,
   })
 
   const buildFrontendAdminOverrides = (values) => ({
     NEXT_PUBLIC_APP_NAME: values.FRONTEND_ADMIN_RUNTIME_APP_NAME,
-    NEXT_PUBLIC_API_URL: values.FRONTEND_ADMIN_RUNTIME_API_URL,
+    NEXT_PUBLIC_EXTERNAL_API_URL: values.FRONTEND_ADMIN_RUNTIME_EXTERNAL_API_URL,
+    INTERNAL_API_URL: values.FRONTEND_ADMIN_RUNTIME_INTERNAL_API_URL,
     NEXT_PUBLIC_APP_URL: values.FRONTEND_ADMIN_RUNTIME_APP_URL,
     NEXT_PUBLIC_COOKIE_DOMAIN: values.FRONTEND_ADMIN_RUNTIME_COOKIE_DOMAIN,
-    MINIO_PUBLIC_URL: values.FRONTEND_ADMIN_RUNTIME_MINIO_PUBLIC_URL,
+    MEDIA_PUBLIC_URL: values.FRONTEND_ADMIN_RUNTIME_MEDIA_PUBLIC_URL,
     NEXT_PUBLIC_REALTIME_ADAPTER: values.FRONTEND_ADMIN_RUNTIME_REALTIME_ADAPTER,
     NEXT_PUBLIC_REALTIME_URL: values.FRONTEND_ADMIN_RUNTIME_REALTIME_URL,
     NEXT_PUBLIC_POLLING_INTERVAL: values.FRONTEND_ADMIN_RUNTIME_POLLING_INTERVAL,
@@ -230,9 +222,9 @@ async function syncEnvFiles() {
 
   if (catalogChanged) {
     await fs.writeFile(envCatalogFile, `${JSON.stringify(catalog, null, 2)}\n`, 'utf8')
-    console.log(`\n  ${dim('catálogo')} ${gray(path.relative(rootDir, envCatalogFile))} ${green('actualizado')}`)
+    console.log(`\n  ${dim('catalogo')} ${gray(path.relative(rootDir, envCatalogFile))} ${green('actualizado')}`)
   } else {
-    console.log(`\n  ${dim('catálogo')} ${gray(path.relative(rootDir, envCatalogFile))} ${dim('sin cambios')}`)
+    console.log(`\n  ${dim('catalogo')} ${gray(path.relative(rootDir, envCatalogFile))} ${dim('sin cambios')}`)
   }
 }
 
@@ -324,100 +316,13 @@ async function checkEnvFiles(strictMode) {
   }
 }
 
-function modeKeyFromServiceId(serviceId) {
-  switch (serviceId) {
-    case 'backend-api':
-      return 'backend_api'
-    case 'frontend-public':
-      return 'frontend_public'
-    case 'frontend-admin':
-      return 'frontend_admin'
-    default:
-      return null
-  }
-}
-
-function requiredRuntimeFilesForStack(stackName) {
-  if (stackName === 'dev') {
-    return ['.env.example', 'package.json']
-  }
-
-  return ['.env.example', 'package.json', 'Dockerfile']
-}
-
-async function collectRuntimeGaps(stackName) {
-  const projectConfig = await readProjectConfig()
-  const requiredFiles = requiredRuntimeFilesForStack(stackName)
-  const gaps = []
-
-  for (const service of services) {
-    const missing = []
-
-    for (const relativeFile of requiredFiles) {
-      try {
-        await fs.access(path.join(service.dir, relativeFile))
-      } catch {
-        missing.push(relativeFile)
-      }
-    }
-
-    if (missing.length > 0) {
-      const modeKey = modeKeyFromServiceId(service.id)
-      gaps.push({
-        serviceId: service.id,
-        label: service.label,
-        mode: modeKey ? projectConfig?.service_modes?.[modeKey] ?? 'desconocido' : 'desconocido',
-        missing,
-      })
-    }
-  }
-
-  return gaps
-}
-
-function renderRuntimeGapMessage(stackName, gaps) {
-  const lines = [
-    `El stack ${stackName} no está listo para levantarse con el compose preconfigurado.`,
-    '',
-    'Faltan artefactos runnable por servicio:',
-  ]
-
-  for (const gap of gaps) {
-    const modeLabel = gap.mode === 'neutral' ? 'modo neutral' : `modo ${gap.mode}`
-    lines.push(`- ${gap.serviceId} (${modeLabel}) → ${gap.missing.join(', ')}`)
-  }
-
-  lines.push('')
-  lines.push('Opciones:')
-  lines.push('- usar presets runnable (`backend-api=fastify`, `frontend-public=nextjs`, `frontend-admin=nextjs`) si querés el stack Docker tal como viene')
-  lines.push('- o completar manualmente `.dev/src/<service>` y adaptar `.infra/docker/*` + `.infra/env/*` a tu stack real')
-  lines.push('- si ya personalizaste el stack conscientemente, podés saltear este guard con `WODLIE_STACK_ALLOW_CUSTOM=1`')
-
-  return lines.join('\n')
-}
-
-async function assertStackRuntimeReady(stackName) {
-  if (process.env.WODLIE_STACK_ALLOW_CUSTOM === '1') {
-    return
-  }
-
-  const gaps = await collectRuntimeGaps(stackName)
-  if (gaps.length > 0) {
-    throw new Error(renderRuntimeGapMessage(stackName, gaps))
-  }
-}
-
-function imageSlug(name) {
-  return String(name ?? 'project')
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'project'
-}
-
 async function runDockerCompose(stackName, composeArgs, options = {}) {
   const stackEnvFile = await ensureStackEnvFile(stackName)
   const envFromFile = await readEnvFile(stackEnvFile)
+  await runDockerComposeWithEnvFile(stackName, stackEnvFile, envFromFile, composeArgs, options)
+}
+
+async function runDockerComposeWithEnvFile(stackName, stackEnvFile, envFromFile, composeArgs, options = {}) {
   const composeProject = `${envFromFile.PROJECT_NAME ?? 'project'}-${envFromFile.COMPOSE_STACK_NAME ?? stackName}`
 
   const args = [
@@ -442,6 +347,12 @@ async function runDockerCompose(stackName, composeArgs, options = {}) {
   })
 }
 
+function serializeEnv(values) {
+  return `${Object.entries(values)
+    .map(([key, value]) => `${key}=${value ?? ''}`)
+    .join('\n')}\n`
+}
+
 async function writeTestState(payload) {
   await fs.mkdir(stateDir, { recursive: true })
   await fs.writeFile(testStateFile, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
@@ -451,45 +362,64 @@ async function handleStackAction(stackName, action, extraArgs) {
   await syncEnvFiles()
 
   switch (action) {
-    case 'up':
-      await assertStackRuntimeReady(stackName)
-      console.log(header(`${bold(stackName)} — levantando stack`))
-      await runDockerCompose(stackName, ['up', '-d', '--build', '--remove-orphans'])
+    case 'up': {
+      const service = extraArgs[0]
+      console.log(header(`${bold(stackName)} — levantando ${service ? tag(service) : 'stack completo'}`))
+      const upArgs = service
+        ? ['up', '-d', '--build', service]
+        : ['up', '-d', '--build', '--remove-orphans']
+      await runDockerCompose(stackName, upArgs)
       break
-    case 'down':
-      console.log(header(`${bold(stackName)} — bajando stack`))
-      if (stackName === 'test') {
-        try {
-          await runTestExposeCommand('down')
-        } catch (error) {
-          console.warn(`  ${warn('expose')} No se pudo cerrar test antes del shutdown: ${gray(error.message)}`)
+    }
+    case 'down': {
+      const service = extraArgs[0]
+      if (service) {
+        console.log(header(`${bold(stackName)} — deteniendo ${tag(service)}`))
+        await runDockerCompose(stackName, ['stop', service])
+        await runDockerCompose(stackName, ['rm', '-f', service])
+        console.log(`\n  ${ok(`${service} detenido`)}`)
+      } else {
+        console.log(header(`${bold(stackName)} — bajando stack completo`))
+        if (stackName === 'test') {
+          try {
+            await runTestCloseCommand({ optional: true })
+          } catch (error) {
+            console.warn(`  ${warn('expose')} No se pudo cerrar test antes del shutdown: ${gray(error.message)}`)
+          }
         }
+        await runDockerCompose(stackName, ['down', '--remove-orphans'])
+        console.log(`\n  ${ok('stack detenido')}`)
       }
-
-      await runDockerCompose(stackName, ['down', '--remove-orphans'])
-      console.log(`\n  ${ok('stack detenido')}`)
       break
-    case 'restart':
-      await assertStackRuntimeReady(stackName)
-      console.log(header(`${bold(stackName)} — reiniciando stack`))
-      await runDockerCompose(stackName, ['down', '--remove-orphans'])
-      await runDockerCompose(stackName, ['up', '-d', '--build', '--remove-orphans'])
+    }
+    case 'restart': {
+      const service = extraArgs[0]
+      if (service) {
+        console.log(header(`${bold(stackName)} — reiniciando ${tag(service)}`))
+        await runDockerCompose(stackName, ['stop', service])
+        await runDockerCompose(stackName, ['rm', '-f', service])
+        await runDockerCompose(stackName, ['up', '-d', '--build', service])
+      } else {
+        console.log(header(`${bold(stackName)} — reiniciando stack completo`))
+        await runDockerCompose(stackName, ['down', '--remove-orphans'])
+        await runDockerCompose(stackName, ['up', '-d', '--build', '--remove-orphans'])
+      }
       break
+    }
     case 'logs':
-      console.log(header(`${bold(stackName)} — logs ${extraArgs.length ? cyan(extraArgs.join(' ')) : 'todos los servicios'}`))
+      console.log(header(`${bold(stackName)} — logs ${extraArgs.length ? tag(extraArgs[0]) : 'todos los servicios'}`))
       await printStackSummary(stackName)
       await runDockerCompose(stackName, ['logs', '-f', ...extraArgs])
       break
     case 'shell': {
       const service = extraArgs[0]
-      if (!service) throw new Error(`Uso: npm run ${stackName}:shell <servicio>\n  Servicios disponibles: backend-api, frontend-public, frontend-admin, postgres, redis, minio`)
+      if (!service) throw new Error(`Uso: npm run ${stackName}:shell <servicio>\n  Servicios disponibles: backend-api, frontend-public, frontend-admin, postgres, redis, media-nginx`)
       const cmd = extraArgs.length > 1 ? extraArgs.slice(1) : ['sh']
       console.log(header(`${bold(stackName)} — shell ${cyan(service)}`))
       await runDockerCompose(stackName, ['exec', service, ...cmd])
       break
     }
     case 'deploy-ghcr': {
-      await assertStackRuntimeReady('test')
       const imageTag = readOption(extraArgs, '--image-tag')
       const gitSha = readOption(extraArgs, '--git-sha') ?? process.env.GITHUB_SHA ?? ''
       const namespace = (readOption(extraArgs, '--namespace') ?? process.env.GHCR_NAMESPACE ?? '').toLowerCase()
@@ -505,13 +435,12 @@ async function handleStackAction(stackName, action, extraArgs) {
       const stackEnvFile = await ensureStackEnvFile('test')
       const stackEnv = await readEnvFile(stackEnvFile)
       const tempEnvFile = path.join(envDir, '.tmp.stack.test.env')
-      const projectName = imageSlug(stackEnv.PROJECT_NAME)
 
       const mergedEnv = {
         ...stackEnv,
-        BACKEND_IMAGE: `ghcr.io/${namespace}/${projectName}-backend-api:${imageTag}`,
-        FRONTEND_PUBLIC_IMAGE: `ghcr.io/${namespace}/${projectName}-frontend-public:${imageTag}`,
-        FRONTEND_ADMIN_IMAGE: `ghcr.io/${namespace}/${projectName}-frontend-admin:${imageTag}`,
+        BACKEND_IMAGE: `ghcr.io/${namespace}/{{PROJECT_NAME}}-backend-api:${imageTag}`,
+        FRONTEND_PUBLIC_IMAGE: `ghcr.io/${namespace}/{{PROJECT_NAME}}-frontend-public:${imageTag}`,
+        FRONTEND_ADMIN_IMAGE: `ghcr.io/${namespace}/{{PROJECT_NAME}}-frontend-admin:${imageTag}`,
       }
 
       await fs.writeFile(
@@ -552,13 +481,14 @@ async function handleStackAction(stackName, action, extraArgs) {
       console.log(`[test] Stack actualizado desde GHCR con tag ${imageTag}`)
       break
     }
+    case 'open':
     case 'expose':
     case 'publish':
-      await runTestExposeCommand('up')
+      await runTestOpenCommand()
       break
     case 'close':
     case 'unpublish':
-      await runTestExposeCommand('down')
+      await runTestCloseCommand({ optional: true })
       break
     case 'mark-success': {
       const gitSha = readOption(extraArgs, '--git-sha') ?? process.env.GITHUB_SHA ?? ''
@@ -591,7 +521,6 @@ async function printStackSummary(stackName) {
   const stackEnv = await readEnvFile(await ensureStackEnvFile(stackName))
   const profiles = (stackEnv.COMPOSE_PROFILES ?? '').split(',').map((p) => p.trim()).filter(Boolean)
   const hasRedis = profiles.includes('redis')
-  const hasMinio = profiles.includes('minio')
 
   console.log(header(`stack ${bold(stackName)} listo`))
   console.log('')
@@ -607,63 +536,445 @@ async function printStackSummary(stackName) {
     console.log(`  ${tag('redis')}           ${gray('inactivo')}  ${dim('→ COMPOSE_PROFILES=redis para activar')}`)
   }
 
-  if (hasMinio) {
-    console.log(`  ${tag('minio')}           ${dim('localhost:' + stackEnv.MINIO_API_PORT)}  ${gray('ui →')} ${dim('localhost:' + stackEnv.MINIO_CONSOLE_PORT)}`)
-  } else {
-    console.log(`  ${tag('minio')}           ${gray('inactivo')}  ${dim('→ COMPOSE_PROFILES=minio para activar')}`)
-  }
+  console.log(`  ${tag('media-nginx')}     ${dim('localhost:' + stackEnv.MEDIA_PORT)}  ${gray('uploads →')} ${dim(stackEnv.MEDIA_PUBLIC_URL)}`)
 
   console.log('')
 }
 
-function readFallbackEnvValue(values, primaryKey, legacyKey) {
-  const primaryValue = values[primaryKey]
-  const legacyValue = legacyKey ? values[legacyKey] : undefined
+function requireExposeValue(values, key) {
+  const value = values[key]
 
-  if (typeof primaryValue !== 'undefined' && primaryValue !== '') {
-    return primaryValue
+  if (typeof value === 'undefined' || value === '') {
+    throw new Error(`Falta ${key} en .infra/env/test-expose.env`)
   }
 
-  if (typeof legacyValue !== 'undefined' && legacyValue !== '') {
-    return legacyValue
-  }
-
-  return primaryValue ?? legacyValue
+  return value
 }
 
-async function runTestExposeCommand(mode) {
-  const testExposeEnvFile = await ensureTestExposeEnvFile()
-  const testExposeEnv = await readEnvFile(testExposeEnvFile)
+function optionalExposeValue(values, key, fallback = '') {
+  const value = values[key]
+  return typeof value === 'undefined' || value === '' ? fallback : value
+}
 
-  if ((readFallbackEnvValue(testExposeEnv, 'TEST_EXPOSE_STRATEGY', 'TEST_PUBLISH_STRATEGY') ?? 'ssh-command') !== 'ssh-command') {
+function assertHttpsUrl(value, key) {
+  let url
+
+  try {
+    url = new URL(value)
+  } catch {
+    throw new Error(`${key} debe ser una URL valida`)
+  }
+
+  if (url.protocol !== 'https:') {
+    throw new Error(`${key} debe usar https`)
+  }
+
+  return url
+}
+
+function deriveCookieDomain(publicUrl) {
+  const host = new URL(publicUrl).hostname
+  const labels = host.split('.')
+
+  if (labels.length >= 4 && labels.at(-1) === 'ar' && labels.at(-2) === 'com') {
+    return `.${labels.slice(-3).join('.')}`
+  }
+
+  if (labels.length >= 2) {
+    return `.${labels.slice(-2).join('.')}`
+  }
+
+  return host
+}
+
+function buildPublicTestStackEnv(stackEnv, exposeEnv) {
+  const publicUrl = requireExposeValue(exposeEnv, 'TEST_EXPOSE_PUBLIC_URL')
+  const adminUrl = requireExposeValue(exposeEnv, 'TEST_EXPOSE_ADMIN_URL')
+  const apiUrl = requireExposeValue(exposeEnv, 'TEST_EXPOSE_API_URL')
+  const mediaUrl = requireExposeValue(exposeEnv, 'TEST_EXPOSE_MEDIA_URL')
+  const cookieDomain = optionalExposeValue(exposeEnv, 'TEST_EXPOSE_COOKIE_DOMAIN', deriveCookieDomain(publicUrl))
+
+  assertHttpsUrl(publicUrl, 'TEST_EXPOSE_PUBLIC_URL')
+  assertHttpsUrl(adminUrl, 'TEST_EXPOSE_ADMIN_URL')
+  assertHttpsUrl(apiUrl, 'TEST_EXPOSE_API_URL')
+  assertHttpsUrl(mediaUrl, 'TEST_EXPOSE_MEDIA_URL')
+
+  return {
+    ...stackEnv,
+    BACKEND_PUBLIC_URL: apiUrl,
+    FRONTEND_PUBLIC_APP_URL: publicUrl,
+    FRONTEND_ADMIN_APP_URL: adminUrl,
+    MEDIA_PUBLIC_URL: `${mediaUrl}/uploads`,
+    FRONTEND_PUBLIC_LOGIN_URL: publicUrl,
+    COOKIE_DOMAIN: cookieDomain,
+    ALLOWED_ORIGINS: `${publicUrl},${adminUrl}`,
+    PLAYWRIGHT_PUBLIC_BASE_URL: publicUrl,
+    PLAYWRIGHT_ADMIN_BASE_URL: adminUrl,
+    BACKEND_RUNTIME_ALLOWED_ORIGINS: `${publicUrl},${adminUrl}`,
+    BACKEND_RUNTIME_MEDIA_PUBLIC_URL: `${mediaUrl}/uploads`,
+    FRONTEND_PUBLIC_RUNTIME_EXTERNAL_API_URL: apiUrl,
+    FRONTEND_PUBLIC_RUNTIME_INTERNAL_API_URL: 'http://backend-api:3000',
+    FRONTEND_PUBLIC_RUNTIME_APP_URL: publicUrl,
+    FRONTEND_PUBLIC_RUNTIME_ADMIN_URL: adminUrl,
+    FRONTEND_PUBLIC_RUNTIME_COOKIE_DOMAIN: cookieDomain,
+    FRONTEND_PUBLIC_RUNTIME_NEXTAUTH_URL: publicUrl,
+    FRONTEND_PUBLIC_RUNTIME_MEDIA_PUBLIC_URL: `${mediaUrl}/uploads`,
+    FRONTEND_PUBLIC_RUNTIME_PLAYWRIGHT_BASE_URL: publicUrl,
+    FRONTEND_ADMIN_RUNTIME_EXTERNAL_API_URL: apiUrl,
+    FRONTEND_ADMIN_RUNTIME_INTERNAL_API_URL: 'http://backend-api:3000',
+    FRONTEND_ADMIN_RUNTIME_APP_URL: adminUrl,
+    FRONTEND_ADMIN_RUNTIME_COOKIE_DOMAIN: cookieDomain,
+    FRONTEND_ADMIN_RUNTIME_MEDIA_PUBLIC_URL: `${mediaUrl}/uploads`,
+    FRONTEND_ADMIN_RUNTIME_REALTIME_URL: apiUrl,
+    FRONTEND_ADMIN_RUNTIME_PLAYWRIGHT_BASE_URL: adminUrl,
+  }
+}
+
+function buildTraefikDynamicConfig(exposeEnv) {
+  const publicUrl = assertHttpsUrl(requireExposeValue(exposeEnv, 'TEST_EXPOSE_PUBLIC_URL'), 'TEST_EXPOSE_PUBLIC_URL')
+  const adminUrl = assertHttpsUrl(requireExposeValue(exposeEnv, 'TEST_EXPOSE_ADMIN_URL'), 'TEST_EXPOSE_ADMIN_URL')
+  const apiUrl = assertHttpsUrl(requireExposeValue(exposeEnv, 'TEST_EXPOSE_API_URL'), 'TEST_EXPOSE_API_URL')
+  const mediaUrl = assertHttpsUrl(requireExposeValue(exposeEnv, 'TEST_EXPOSE_MEDIA_URL'), 'TEST_EXPOSE_MEDIA_URL')
+  const bindIp = requireExposeValue(exposeEnv, 'TEST_EXPOSE_BIND_IP')
+  const backendPort = requireExposeValue(exposeEnv, 'TEST_EXPOSE_REMOTE_BACKEND_PORT')
+  const publicPort = requireExposeValue(exposeEnv, 'TEST_EXPOSE_REMOTE_PUBLIC_PORT')
+  const adminPort = requireExposeValue(exposeEnv, 'TEST_EXPOSE_REMOTE_ADMIN_PORT')
+  const mediaPort = requireExposeValue(exposeEnv, 'TEST_EXPOSE_REMOTE_MEDIA_PORT')
+
+  return `http:
+  middlewares:
+    {{PROJECT_NAME}}-test-noindex:
+      headers:
+        customResponseHeaders:
+          X-Robots-Tag: "noindex, nofollow, noarchive"
+
+  routers:
+    public-test-router-web:
+      rule: Host(\`${publicUrl.hostname}\`)
+      service: public-test-service
+      middlewares:
+        - redirect-to-https
+      entryPoints:
+        - web
+
+    public-test-router-websecure:
+      rule: Host(\`${publicUrl.hostname}\`)
+      service: public-test-service
+      middlewares:
+        - {{PROJECT_NAME}}-test-noindex
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    admin-test-router-web:
+      rule: Host(\`${adminUrl.hostname}\`)
+      service: admin-test-service
+      middlewares:
+        - redirect-to-https
+      entryPoints:
+        - web
+
+    admin-test-router-websecure:
+      rule: Host(\`${adminUrl.hostname}\`)
+      service: admin-test-service
+      middlewares:
+        - {{PROJECT_NAME}}-test-noindex
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    api-test-router-web:
+      rule: Host(\`${apiUrl.hostname}\`)
+      service: api-test-service
+      middlewares:
+        - redirect-to-https
+      entryPoints:
+        - web
+
+    api-test-router-websecure:
+      rule: Host(\`${apiUrl.hostname}\`)
+      service: api-test-service
+      middlewares:
+        - {{PROJECT_NAME}}-test-noindex
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    media-test-router-web:
+      rule: Host(\`${mediaUrl.hostname}\`)
+      service: media-test-service
+      middlewares:
+        - redirect-to-https
+      entryPoints:
+        - web
+
+    media-test-router-websecure:
+      rule: Host(\`${mediaUrl.hostname}\`)
+      service: media-test-service
+      middlewares:
+        - {{PROJECT_NAME}}-test-noindex
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    public-test-service:
+      loadBalancer:
+        servers:
+          - url: http://${bindIp}:${publicPort}
+        passHostHeader: true
+
+    admin-test-service:
+      loadBalancer:
+        servers:
+          - url: http://${bindIp}:${adminPort}
+        passHostHeader: true
+
+    api-test-service:
+      loadBalancer:
+        servers:
+          - url: http://${bindIp}:${backendPort}
+        passHostHeader: true
+
+    media-test-service:
+      loadBalancer:
+        servers:
+          - url: http://${bindIp}:${mediaPort}
+        passHostHeader: true
+`
+}
+
+function quoteRemotePath(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`
+}
+
+async function writeRemoteTraefikConfig(exposeEnv, configContent) {
+  const host = requireExposeValue(exposeEnv, 'TEST_EXPOSE_SSH_HOST')
+  const user = requireExposeValue(exposeEnv, 'TEST_EXPOSE_SSH_USER')
+  const port = optionalExposeValue(exposeEnv, 'TEST_EXPOSE_SSH_PORT', '22')
+  const remoteFile = requireExposeValue(exposeEnv, 'TEST_EXPOSE_TRAEFIK_DYNAMIC_FILE')
+  const remoteFileArg = quoteRemotePath(remoteFile)
+  const encodedConfig = Buffer.from(configContent, 'utf8').toString('base64')
+  const command = `mkdir -p "$(dirname ${remoteFileArg})" && printf %s ${encodedConfig} | base64 -d > ${remoteFileArg}`
+
+  await runCommand('ssh', ['-p', port, `${user}@${host}`, command], { cwd: rootDir })
+}
+
+async function removeRemoteTraefikConfig(exposeEnv, options = {}) {
+  const optional = Boolean(options.optional)
+  const host = exposeEnv.TEST_EXPOSE_SSH_HOST
+  const user = exposeEnv.TEST_EXPOSE_SSH_USER
+  const port = optionalExposeValue(exposeEnv, 'TEST_EXPOSE_SSH_PORT', '22')
+  const remoteFile = exposeEnv.TEST_EXPOSE_TRAEFIK_DYNAMIC_FILE
+
+  if (!host || !user || !remoteFile) {
+    if (optional) {
+      console.log(`\n  ${ok('test cerrado')} ${gray('sin ruta remota de Traefik configurada')}`)
+      return
+    }
+
+    throw new Error('Faltan TEST_EXPOSE_SSH_HOST, TEST_EXPOSE_SSH_USER o TEST_EXPOSE_TRAEFIK_DYNAMIC_FILE')
+  }
+
+  try {
+    await runCommand('ssh', ['-p', port, `${user}@${host}`, `rm -f ${quoteRemotePath(remoteFile)}`], { cwd: rootDir })
+  } catch (error) {
+    if (optional) {
+      console.warn(`\n  ${warn('test close')} ${gray(`no se pudo retirar Traefik remoto; se continua: ${error.message}`)}`)
+      return
+    }
+
+    throw error
+  }
+}
+
+async function startTestExposeTunnel(stackEnv, exposeEnv) {
+  const host = requireExposeValue(exposeEnv, 'TEST_EXPOSE_SSH_HOST')
+  const user = requireExposeValue(exposeEnv, 'TEST_EXPOSE_SSH_USER')
+  const port = optionalExposeValue(exposeEnv, 'TEST_EXPOSE_SSH_PORT', '22')
+  const bindIp = requireExposeValue(exposeEnv, 'TEST_EXPOSE_BIND_IP')
+  const backendPort = requireExposeValue(exposeEnv, 'TEST_EXPOSE_REMOTE_BACKEND_PORT')
+  const publicPort = requireExposeValue(exposeEnv, 'TEST_EXPOSE_REMOTE_PUBLIC_PORT')
+  const adminPort = requireExposeValue(exposeEnv, 'TEST_EXPOSE_REMOTE_ADMIN_PORT')
+  const mediaPort = requireExposeValue(exposeEnv, 'TEST_EXPOSE_REMOTE_MEDIA_PORT')
+  const args = [
+    '-NT',
+    '-p',
+    port,
+    '-o',
+    'ExitOnForwardFailure=yes',
+    '-o',
+    'BatchMode=yes',
+    '-o',
+    'ServerAliveInterval=30',
+    '-o',
+    'ServerAliveCountMax=3',
+    '-R',
+    `${bindIp}:${backendPort}:127.0.0.1:${stackEnv.BACKEND_PORT}`,
+    '-R',
+    `${bindIp}:${publicPort}:127.0.0.1:${stackEnv.FRONTEND_PUBLIC_PORT}`,
+    '-R',
+    `${bindIp}:${adminPort}:127.0.0.1:${stackEnv.FRONTEND_ADMIN_PORT}`,
+    '-R',
+    `${bindIp}:${mediaPort}:127.0.0.1:${stackEnv.MEDIA_PORT}`,
+    `${user}@${host}`,
+  ]
+
+  const child = spawn('ssh', args, {
+    cwd: rootDir,
+    detached: true,
+    stdio: 'ignore',
+  })
+
+  await waitForChildStartup(child, 'tunel SSH reverso')
+  child.unref()
+  return child.pid
+}
+
+function waitForChildStartup(child, label) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      child.off('error', onError)
+      child.off('exit', onExit)
+      resolve()
+    }, 1500)
+
+    const onError = (error) => {
+      clearTimeout(timeout)
+      child.off('exit', onExit)
+      reject(error)
+    }
+
+    const onExit = (code) => {
+      clearTimeout(timeout)
+      child.off('error', onError)
+      reject(new Error(`${label} termino antes de quedar activo con codigo ${code}`))
+    }
+
+    child.once('error', onError)
+    child.once('exit', onExit)
+  })
+}
+
+async function stopTestExposeTunnel(options = {}) {
+  const optional = Boolean(options.optional)
+  let state
+
+  try {
+    state = JSON.parse(await fs.readFile(testExposeStateFile, 'utf8'))
+  } catch (error) {
+    if (optional && error && error.code === 'ENOENT') {
+      console.log(`\n  ${ok('test cerrado')} ${gray('sin tunel local registrado')}`)
+      return
+    }
+
+    throw error
+  }
+
+  const pid = Number(state.ssh_pid)
+  if (!pid) {
+    if (optional) {
+      console.log(`\n  ${ok('test cerrado')} ${gray('sin PID de tunel registrado')}`)
+      await fs.rm(testExposeStateFile, { force: true })
+      return
+    }
+
+    throw new Error('Estado de expose sin ssh_pid')
+  }
+
+  try {
+    await stopProcessByPid(pid, { optional })
+  } finally {
+    await fs.rm(testExposeStateFile, { force: true })
+  }
+}
+
+async function runTestOpenCommand() {
+  const testExposeEnvFile = await ensureTestExposeEnvFile()
+  const exposeEnv = await readEnvFile(testExposeEnvFile)
+  const strategy = optionalExposeValue(exposeEnv, 'TEST_EXPOSE_STRATEGY', 'ssh-command')
+
+  if (strategy !== 'ssh-command') {
     throw new Error('Solo está implementada la estrategia ssh-command')
   }
 
-  const host = readFallbackEnvValue(testExposeEnv, 'TEST_EXPOSE_SSH_HOST', 'TEST_PUBLISH_SSH_HOST')
-  const user = readFallbackEnvValue(testExposeEnv, 'TEST_EXPOSE_SSH_USER', 'TEST_PUBLISH_SSH_USER')
-  const port = readFallbackEnvValue(testExposeEnv, 'TEST_EXPOSE_SSH_PORT', 'TEST_PUBLISH_SSH_PORT') ?? '22'
-  const command = mode === 'up'
-    ? readFallbackEnvValue(testExposeEnv, 'TEST_EXPOSE_REMOTE_UP_COMMAND', 'TEST_PUBLISH_REMOTE_UP_COMMAND')
-    : readFallbackEnvValue(testExposeEnv, 'TEST_EXPOSE_REMOTE_DOWN_COMMAND', 'TEST_PUBLISH_REMOTE_DOWN_COMMAND')
+  const stackEnvFile = await ensureStackEnvFile('test')
+  const stackEnv = await readEnvFile(stackEnvFile)
+  const publicStackEnv = buildPublicTestStackEnv(stackEnv, exposeEnv)
 
-  if (!host || !user || !command) {
-    throw new Error(
-      'Completa TEST_EXPOSE_SSH_HOST, TEST_EXPOSE_SSH_USER y los comandos remotos en .infra/env/test-expose.env',
-    )
+  await runTestCloseCommand({ optional: true })
+
+  await fs.writeFile(testOpenStackEnvFile, serializeEnv(publicStackEnv), 'utf8')
+  try {
+    await runDockerComposeWithEnvFile('test', testOpenStackEnvFile, publicStackEnv, ['up', '-d', '--build', '--remove-orphans'])
+  } finally {
+    await fs.rm(testOpenStackEnvFile, { force: true })
   }
 
-  await runCommand('ssh', ['-p', port, `${user}@${host}`, command], { cwd: rootDir })
-
-  if (mode === 'up') {
-    console.log(header('test expuesto'))
-    console.log('')
-    console.log(`  ${tag('frontend-public')}  ${info(readFallbackEnvValue(testExposeEnv, 'TEST_EXPOSE_PUBLIC_URL', 'TEST_PUBLIC_URL'))}`)
-    console.log(`  ${tag('frontend-admin')}   ${info(readFallbackEnvValue(testExposeEnv, 'TEST_EXPOSE_ADMIN_URL', 'TEST_ADMIN_URL'))}`)
-    console.log(`  ${tag('backend-api')}      ${info(readFallbackEnvValue(testExposeEnv, 'TEST_EXPOSE_API_URL', 'TEST_API_URL'))}`)
-    console.log('')
-  } else {
-    console.log(`\n  ${ok('test cerrado — rutas desactivadas')}`)
+  const sshPid = await startTestExposeTunnel(publicStackEnv, exposeEnv)
+  try {
+    await writeRemoteTraefikConfig(exposeEnv, buildTraefikDynamicConfig(exposeEnv))
+  } catch (error) {
+    await stopProcessByPid(sshPid, { optional: true })
+    throw error
   }
+
+  await fs.mkdir(stateDir, { recursive: true })
+  await fs.writeFile(testExposeStateFile, `${JSON.stringify({
+    opened_at: new Date().toISOString(),
+    ssh_pid: sshPid,
+    public_url: exposeEnv.TEST_EXPOSE_PUBLIC_URL,
+    admin_url: exposeEnv.TEST_EXPOSE_ADMIN_URL,
+    api_url: exposeEnv.TEST_EXPOSE_API_URL,
+    traefik_dynamic_file: exposeEnv.TEST_EXPOSE_TRAEFIK_DYNAMIC_FILE,
+  }, null, 2)}\n`, 'utf8')
+
+  console.log(header('test abierto'))
+  console.log('')
+  console.log(`  ${tag('frontend-public')}  ${info(exposeEnv.TEST_EXPOSE_PUBLIC_URL)}`)
+  console.log(`  ${tag('frontend-admin')}   ${info(exposeEnv.TEST_EXPOSE_ADMIN_URL)}`)
+  console.log(`  ${tag('backend-api')}      ${info(exposeEnv.TEST_EXPOSE_API_URL)}`)
+  console.log('')
+}
+
+async function stopProcessByPid(pid, options = {}) {
+  const optional = Boolean(options.optional)
+
+  try {
+    if (process.platform === 'win32') {
+      await runCommand('taskkill', ['/PID', String(pid), '/T', '/F'], { cwd: rootDir })
+    } else {
+      process.kill(-pid, 'SIGTERM')
+    }
+  } catch (error) {
+    if (!optional) {
+      throw error
+    }
+  }
+}
+
+async function runTestCloseCommand(options = {}) {
+  const optional = Boolean(options.optional)
+  const testExposeEnvFile = await ensureTestExposeEnvFile()
+  const exposeEnv = await readEnvFile(testExposeEnvFile)
+  const strategy = optionalExposeValue(exposeEnv, 'TEST_EXPOSE_STRATEGY', 'ssh-command')
+
+  if (strategy !== 'ssh-command') {
+    if (optional) {
+      console.log(`\n  ${ok('test cerrado')} ${gray('sin estrategia ssh-command activa')}`)
+      return
+    }
+
+    throw new Error('Solo está implementada la estrategia ssh-command')
+  }
+
+  await removeRemoteTraefikConfig(exposeEnv, { optional })
+  await stopTestExposeTunnel({ optional })
+  console.log(`\n  ${ok('test cerrado')}`)
 }
 
 function readOption(args, flagName) {
@@ -694,7 +1005,6 @@ async function runInfraPorts() {
     const values = await readEnvFile(envFile)
     const profiles = (values.COMPOSE_PROFILES ?? '').split(',').map((p) => p.trim()).filter(Boolean)
     const hasRedis = profiles.includes('redis')
-    const hasMinio = profiles.includes('minio')
 
     const port = (p) => cyan(String(p))
     const inactive = gray('inactivo')
@@ -705,7 +1015,7 @@ async function runInfraPorts() {
     console.log(`  ${tag('frontend-admin')}   ${port(values.FRONTEND_ADMIN_PORT)}`)
     console.log(`  ${tag('postgres')}         ${port(values.POSTGRES_PORT)}`)
     console.log(`  ${tag('redis')}            ${hasRedis ? port(values.REDIS_PORT) : inactive}`)
-    console.log(`  ${tag('minio')}            ${hasMinio ? `api ${port(values.MINIO_API_PORT)}  ui ${port(values.MINIO_CONSOLE_PORT)}` : inactive}`)
+    console.log(`  ${tag('media-nginx')}      ${port(values.MEDIA_PORT)}`)
     console.log('')
   }
 }

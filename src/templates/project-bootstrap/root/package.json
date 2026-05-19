@@ -14,6 +14,7 @@
     "test:logs": "node ./.infra/scripts/env/index.mjs test logs",
     "test:restart": "node ./.infra/scripts/env/index.mjs test restart",
     "test:shell": "node ./.infra/scripts/env/index.mjs test shell",
+    "test:open": "node ./.infra/scripts/env/index.mjs test open",
     "test:expose": "node ./.infra/scripts/env/index.mjs test expose",
     "test:close": "node ./.infra/scripts/env/index.mjs test close",
     "test:deploy-ghcr": "node ./.infra/scripts/env/index.mjs test deploy-ghcr",

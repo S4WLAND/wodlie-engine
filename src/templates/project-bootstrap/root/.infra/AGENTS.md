@@ -4,6 +4,7 @@
 Infraestructura operativa del proyecto:
 
 - orquestación local `dev/test` con Docker
+- media local servida por `media-nginx`
 - exposición controlada de `test`
 - CI/CD en GitHub Actions por servicio
 - producción remota en VPS + Dokploy sólo para `production`
@@ -16,6 +17,7 @@ La ficha técnica base sigue viviendo en `.wodlie-config/project.json`, pero los
 3. `.infra/vps/ci-cd.md` — workflows, tags de release, runner local, Dokploy
 4. `.infra/vps/secrets.md` — claves, variables, examples y catálogos
 5. `.infra/vps/checklist.md` — pasos operativos y validaciones
+6. `.github/workflows/*.yml` — workflows reales que consumen los scripts de `.infra/`
 
 ## Regla obligatoria de documentación
 
@@ -47,6 +49,8 @@ Cualquier cambio en:
 - Usar `npm run env:sync` para materializar `.env.development` y `.env.test` desde los `.env.example` de cada app
 - Usar `npm run env:check` para validar que los examples sigan cubriendo el código real
 - Usar `npm run dev:*` y `npm run test:*` como superficie principal de operación local
+- Usar `npm run test:open` sólo cuando `.infra/env/test-expose.env` tenga URLs, túnel y comandos remotos reales
+- Mantener `media-nginx` como lector de uploads; el backend escribe, los frontends consumen por URL pública
 - Usar `wodlie-engine ssh:verify` para validar acceso SSH cuando cambie el VPS
 - Si vas a regenerar `.infra/` tras edición manual, avisar primero
 

@@ -16,6 +16,7 @@ backend-api/
 │   ├── config/              app, env, media, security
 │   ├── db/                  acceso a base de datos
 │   ├── modules/<module>/    dominio, use-cases, infra y http
+│   ├── page-modules/        composición BFF para SSR público
 │   ├── plugins/             plugins globales de Fastify
 │   ├── shared/              errores, logger, helpers y tipos
 │   ├── workers/             jobs y procesos background
@@ -60,11 +61,10 @@ Ver `.env.example`. Claves principales:
 - `QUEUE_ADAPTER`
 - `CACHE_ADAPTER`
 - `REDIS_URL`
-- `MINIO_ENDPOINT`
-- `MINIO_ROOT_USER`
-- `MINIO_ROOT_PASSWORD`
-- `MINIO_BUCKET`
-- `MINIO_PUBLIC_URL`
+- `MEDIA_STORAGE_DIR`
+- `MEDIA_PUBLIC_URL`
+- `MEDIA_MAX_IMAGE_WIDTH`
+- `MEDIA_IMAGE_QUALITY`
 - `ALLOWED_ORIGINS`
 
 ## Patrón de módulo
@@ -89,3 +89,14 @@ Reglas:
 - `plugins/` contiene infraestructura HTTP/global
 
 Ver `src/modules/_template/` como referencia.
+
+## Superficies HTTP
+
+El contrato se versiona desde el primer día:
+
+- `/api/v1/auth/*` para autenticación común
+- `/api/v1/admin/*` para gestión y mutaciones protegidas
+- `/api/v1/public/*` para lecturas públicas granulares
+- `/api/v1/pages/*` para BFF SSR de composición
+
+`page-modules` no reemplaza módulos de dominio: sólo arma DTOs largos de página consumiendo use-cases públicos existentes. Ver `src/page-modules/_template/`.

@@ -1,10 +1,9 @@
 export const mediaConfig = {
-  minio: {
-    endpoint: process.env.MINIO_ENDPOINT || 'http://localhost:9000',
-    user: process.env.MINIO_ROOT_USER || '',
-    password: process.env.MINIO_ROOT_PASSWORD || '',
-    bucket: process.env.MINIO_BUCKET || '{{PROJECT_NAME}}-media',
-    publicUrl: process.env.MINIO_PUBLIC_URL || '',
+  storage: {
+    directory: process.env.MEDIA_STORAGE_DIR || '/app/storage/uploads',
+    publicUrl: process.env.MEDIA_PUBLIC_URL || '',
+    maxImageWidth: Number(process.env.MEDIA_MAX_IMAGE_WIDTH || 1200),
+    imageQuality: Number(process.env.MEDIA_IMAGE_QUALITY || 75),
   },
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB

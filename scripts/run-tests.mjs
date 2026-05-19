@@ -143,7 +143,8 @@ async function testInfraSync() {
     assert.match(vpsReadme, /Hostinger/)
     assert.match(vpsReadme, /2 vCPU/)
     assert.match(vpsReadme, /demo.com/)
-    assert.match(serviceOps, /Postgres, Redis o MinIO/)
+    assert.match(serviceOps, /Postgres, Redis o media local/)
+    assert.match(serviceOps, /media-nginx/)
   })
 }
 

@@ -15,6 +15,6 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 EXPOSE ${PORT}
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD wget -qO- http://localhost:${PORT}/health || exit 1
+# Desactivado temporalmente para no disparar requests periodicos a /health.
+HEALTHCHECK NONE
 CMD ["node", "dist/server.js"]

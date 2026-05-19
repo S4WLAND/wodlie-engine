@@ -1,0 +1,98 @@
+name: Test Backend API
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.dev/src/backend-api/**'
+      - '.infra/docker/**'
+      - '.infra/env/**'
+      - '.infra/scripts/**'
+      - '.github/workflows/test-backend-api.yml'
+      - 'package.json'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate backend-api test stack
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Sync env templates
+        run: npm run env:sync
+
+      - name: Validate env catalog
+        run: node ./.infra/scripts/env/index.mjs env check --strict
+
+      - name: Build backend-api test image
+        run: |
+          docker compose \
+            --project-name ci-test-backend-api \
+            --env-file .infra/env/stack.test.env \
+            -f .infra/docker/compose.base.yml \
+            -f .infra/docker/compose.test.yml \
+            build backend-api
+
+  update-test:
+    name: Update local backend-api test service
+    needs: validate
+    runs-on: self-hosted
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Sync env templates
+        run: npm run env:sync
+
+      - name: Update backend-api test service safely
+        shell: powershell
+        run: |
+          .\.infra\scripts\ci\update-test-service.ps1 `
+            -Service backend-api `
+            -SmokeUrlKey BACKEND_PUBLIC_URL `
+            -SmokePath /health `
+            -ExpectedStatusMin 200 `
+            -ExpectedStatusMax 299 `
+            -CleanupServices frontend-public,frontend-admin
+
+      - name: Publicar resumen del stack test
+        if: success()
+        shell: powershell
+        run: |
+          $values = @{}
+          Get-Content .infra/env/stack.test.env | ForEach-Object {
+            if ($_ -match '^([A-Z0-9_]+)=(.*)$') { $values[$matches[1]] = $matches[2] }
+          }
+          @"
+          ## Stack test actualizado — backend-api
+
+          | Servicio | URL |
+          |---|---|
+          | Frontend Público | $($values.FRONTEND_PUBLIC_APP_URL) |
+          | Frontend Admin | $($values.FRONTEND_ADMIN_APP_URL) |
+          | API Backend | $($values.BACKEND_PUBLIC_URL) |
+
+          **Commit:** ``${{ github.sha }}``
+          "@ | Add-Content $env:GITHUB_STEP_SUMMARY
+
+      - name: Open test routes if enabled
+        if: ${{ vars.TEST_AUTO_EXPOSE == 'true' }}
+        run: npm run test:open

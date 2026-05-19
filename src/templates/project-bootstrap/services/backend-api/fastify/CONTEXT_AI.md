@@ -51,4 +51,4 @@ La selección se hace por env var para evitar acoplar negocio a infraestructura 
 
 - si aparece una env var nueva, reflejarla en `.env.example`
 - si un módulo usa persistencia, documentar schema y migraciones
-- si Redis o MinIO pasan a ser obligatorios, actualizar también `.infra/docker/*` y `.infra/env/*`
+- si Redis pasa a ser obligatorio o cambia la estrategia de media local, actualizar también `.infra/docker/*` y `.infra/env/*`

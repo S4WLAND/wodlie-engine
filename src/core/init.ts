@@ -67,7 +67,7 @@ function replaceVars(content: string): string {
 
 async function processFile(src: string, dest: string): Promise<void> {
   const ext = path.extname(src)
-  const textExts = ['.ts', '.tsx', '.js', '.mjs', '.json', '.md', '.yml', '.yaml', '.sh', '.css', '.example', '.txt', '']
+  const textExts = ['.ts', '.tsx', '.js', '.mjs', '.json', '.md', '.yml', '.yaml', '.sh', '.ps1', '.css', '.conf', '.example', '.txt', '']
 
   if (textExts.includes(ext) || path.basename(src).startsWith('.env')) {
     const content = await fs.readFile(src, 'utf-8')
@@ -241,6 +241,41 @@ function hasPreconfiguredRuntime(modes: ServiceModeAnswers): boolean {
     && modes.frontend_admin === 'nextjs'
 }
 
+function resolveStackGuidelineVars(modes: ServiceModeAnswers): Record<string, string> {
+  return {
+    BACKEND_STACK: modes.backend_api === 'fastify'
+      ? 'Node.js 20 + Fastify 4 + TypeScript 5'
+      : 'pendiente segun preset neutral',
+    ORM_STACK: modes.backend_api === 'fastify'
+      ? 'Drizzle ORM + drizzle-kit'
+      : 'pendiente',
+    DB_STACK: 'PostgreSQL 16',
+    FRONTEND_STACK: modes.frontend_public === 'nextjs' || modes.frontend_admin === 'nextjs'
+      ? 'Next.js 16 + React 19 + TypeScript 5'
+      : 'pendiente segun preset neutral',
+    STATE_MANAGEMENT: modes.frontend_public === 'nextjs' || modes.frontend_admin === 'nextjs'
+      ? 'Zustand'
+      : 'pendiente',
+    DATA_FETCHING: modes.frontend_public === 'nextjs' || modes.frontend_admin === 'nextjs'
+      ? 'TanStack React Query + Axios'
+      : 'pendiente',
+    STYLES_APPROACH: modes.frontend_public === 'nextjs' || modes.frontend_admin === 'nextjs'
+      ? 'CSS Modules + tokens.css; admin puede incorporar shadcn/ui + Tailwind cuando el flujo lo justifique'
+      : 'pendiente',
+    UNIT_TEST_FRAMEWORK: 'Vitest',
+    E2E_TEST_FRAMEWORK: 'Playwright',
+    QUEUE_STACK: modes.backend_api === 'fastify'
+      ? 'Graphile Worker por defecto; Redis/BullMQ opcional'
+      : 'pendiente',
+    CACHE_STACK: modes.backend_api === 'fastify'
+      ? 'In-memory por defecto; Redis opcional'
+      : 'pendiente',
+    HTTP_CLIENT: 'Axios',
+    LOGGER: 'Pino',
+    VALIDATION_LIBRARY: 'Zod',
+  }
+}
+
 export async function initCommand(proyecto: string, options: InitOptions): Promise<void> {
   console.log(chalk.bold(`\n🚀 Wodlie Engine — Inicializando proyecto: ${proyecto}\n`))
 
@@ -398,6 +433,7 @@ export async function initCommand(proyecto: string, options: InitOptions): Promi
     BACKEND_API_MODE: serviceModes.backend_api,
     FRONTEND_PUBLIC_MODE: serviceModes.frontend_public,
     FRONTEND_ADMIN_MODE: serviceModes.frontend_admin,
+    ...resolveStackGuidelineVars(serviceModes),
   })
 
   console.log(chalk.cyan('\n→ Copiando bootstrap base...'))

@@ -17,6 +17,7 @@ Presets soportados hoy:
 - `frontend-admin`: `neutral` o `nextjs`
 
 El stack Docker preconfigurado queda listo cuando la combinación es `fastify + nextjs + nextjs`.
+En esa combinación, `backend-api`, `frontend-public` y `frontend-admin` se operan por separado; `media-nginx` sirve uploads locales y los frontends no montan storage.
 
 Detalle completo en `.dev/development_guidelines.md`.
 
@@ -25,7 +26,7 @@ Detalle completo en `.dev/development_guidelines.md`.
 ## Orden de lectura por tipo de tarea
 
 ### Backend
-1. `.dev/development_guidelines.md` (§4 Clean Architecture, §13 migrations, §14 testing)
+1. `.dev/development_guidelines.md` (§4 Clean Architecture, §13 migrations, §14 testing, §27 superficies HTTP)
 2. `.dev/src/backend-api/README.md` — comandos, estructura física, env vars
 3. `.dev/src/backend-api/CONTEXT_AI.md` — decisiones, gotchas, deuda
 4. `.dev/src/backend-api/PROGRESS_CHECKLIST.md` — fases técnicas y próximos pasos
@@ -59,6 +60,8 @@ Además:
 - La política oficial de breakpoints, responsive mobile-first y SEO público vive en `.dev/development_guidelines.md`
 - La política de nuevas dependencias también vive ahí; no asumir que están prohibidas por defecto
 - **No iniciar servidores long-running** (`npm run dev`, `npm run dev:up`, `npm run test:up` o similares) salvo pedido explícito del operador; si el operador ya tiene el entorno levantado, limitarse a validar con comandos finitos como lint, typecheck o build.
+- En backend, separar contratos `/api/v1/admin/*`, `/api/v1/public/*` y `/api/v1/pages/*`; `page-modules` sólo compone datos para SSR y no duplica reglas de dominio.
+- En frontends, usar `INTERNAL_API_URL` para SSR/Server Components dentro de Docker y `NEXT_PUBLIC_EXTERNAL_API_URL` para navegador.
 
 ---
 

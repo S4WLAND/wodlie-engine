@@ -535,7 +535,7 @@ Ejemplos:
 /**
  * Tokens de diseño
  *
- * Variables CSS globales del sistema de diseño de My Project.
+ * Variables CSS globales del sistema de diseño de {{CLIENT_NAME}}.
  * Fuente de verdad para colores, espaciados, tipografías, radios, sombras y efectos.
  */
 ```
@@ -712,20 +712,20 @@ Aplica a toda página pública. Obligatorio desde el primer deploy de la landing
 
 ```typescript
 export const metadata: Metadata = {
-  title: 'My Project — Example Business',
+  title: '{{CLIENT_NAME}} — Example Business',
   description: 'Descripción única (150–160 caracteres).',
   openGraph: {
-    title: 'My Project — Example Business',
+    title: '{{CLIENT_NAME}} — Example Business',
     description: 'Descripción para redes sociales.',
-    url: process.env.NEXT_PUBLIC_APP_URL ?? 'https://example.com',
-    siteName: 'My Project',
+    url: process.env.NEXT_PUBLIC_APP_URL ?? 'https://{{DOMAIN}}',
+    siteName: '{{CLIENT_NAME}}',
     images: [{ url: '/og/home.png', width: 1200, height: 630 }],
     locale: 'es_AR',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'My Project — Example Business',
+    title: '{{CLIENT_NAME}} — Example Business',
     description: 'Descripción para Twitter/X.',
     images: ['/og/home.png'],
   },
@@ -734,7 +734,7 @@ export const metadata: Metadata = {
 // Metadata dinámica
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const service = await getService(params.slug)
-  return { title: `${service.name} — My Project`, description: service.description }
+  return { title: `${service.name} — {{CLIENT_NAME}}`, description: service.description }
 }
 ```
 
@@ -933,7 +933,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
 ### ARIA
 
 ```tsx
-<nav aria-label="Redes sociales de My Project">
+<nav aria-label="Redes sociales de {{CLIENT_NAME}}">
 
 <section aria-labelledby="services-title">
   <h2 id="services-title">Nuestros servicios</h2>

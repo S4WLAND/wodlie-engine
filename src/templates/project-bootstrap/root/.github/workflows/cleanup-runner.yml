@@ -1,0 +1,25 @@
+name: Cleanup Self-Hosted Runner
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # domingo 3am
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Prune Docker artifacts on self-hosted runner
+    runs-on: self-hosted
+    timeout-minutes: 10
+
+    steps:
+      - name: Prune dangling images
+        run: docker image prune -f
+
+      - name: Prune unused builder cache
+        run: docker builder prune -f --filter "until=168h"
+
+      - name: Report disk usage
+        run: docker system df

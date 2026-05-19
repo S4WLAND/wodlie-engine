@@ -32,10 +32,6 @@ export const testExposeEnvFiles = {
   example: path.join(envDir, 'test-expose.env.example'),
 }
 
-export const legacyPublishEnvFiles = {
-  actual: path.join(envDir, 'publish.env'),
-}
-
 export const testStateFile = path.join(stateDir, 'test-release-state.json')
 export const envCatalogFile = path.join(envDir, 'catalog.json')
 

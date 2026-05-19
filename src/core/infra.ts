@@ -76,7 +76,8 @@ function renderRuntimeNotice(config: ProjectConfig): string {
     return [
       '- El stack Docker `dev/test` ya viene preconfigurado para la combinación `fastify + nextjs + nextjs`',
       '- `npm run dev:up` y `npm run test:up` deberían funcionar después de `npm run env:sync` y de instalar Docker',
-      '- Redis y MinIO siguen siendo opcionales mediante `COMPOSE_PROFILES`',
+      '- Redis sigue siendo opcional mediante `COMPOSE_PROFILES=redis`',
+      '- `media-nginx` queda activo por defecto para servir uploads locales desde `.dev/storage/*/uploads`',
     ].join('\n')
   }
 
@@ -97,11 +98,11 @@ function renderInfraReadme(config: ProjectConfig): string {
 
 Esta capa define y documenta dos planos operativos complementarios:
 
-- **local**: stacks Docker \`dev\` y \`test\`, sincronización de envs, expose controlado y scripts \`npm\`
+- **local**: stacks Docker \`dev\` y \`test\`, sincronización de envs, media local, expose controlado y scripts \`npm\`
 - **remoto**: documentación y runbooks de la infraestructura objetivo para \`${config.hosting_type}\`
 
 \`.github/\` vive en la **raíz** del repo porque GitHub Actions no admite workflows fuera de ese directorio.  
-\`.infra/\` concentra Docker, variables, scripts y runbooks.
+\`.infra/\` concentra Docker, variables, scripts, runbooks y lógica operativa reutilizable.
 
 ## Opción activa
 
@@ -127,6 +128,8 @@ test         → Docker local prod-like + expose opcional
 production   → infraestructura remota + promoción manual por servicio
 \`\`\`
 
+La promoción productiva recomendada es granular: se construye y publica una imagen por servicio, se redeploya sólo la app afectada y el workflow espera el estado real del deployment antes de marcar éxito.
+
 ## Arquitectura local — Contenedores y puertos
 
 ### Development (\`dev:up\`)
@@ -138,8 +141,7 @@ production   → infraestructura remota + promoción manual por servicio
 | \`frontend-admin\` | 3002 | panel interno |
 | \`postgres\` | 5432 | siempre activo |
 | \`redis\` | 6379 | opcional via profile \`redis\` |
-| \`minio api\` | 9000 | opcional via profile \`minio\` |
-| \`minio console\` | 9001 | opcional via profile \`minio\` |
+| \`media-nginx\` | 9000 | media local pública, siempre activo |
 
 ### Test (\`test:up\`)
 
@@ -150,23 +152,22 @@ production   → infraestructura remota + promoción manual por servicio
 | \`frontend-admin\` | 3102 | build prod-like |
 | \`postgres\` | 55432 | siempre activo |
 | \`redis\` | 16379 | opcional via profile \`redis\` |
-| \`minio api\` | 9100 | opcional via profile \`minio\` |
-| \`minio console\` | 9101 | opcional via profile \`minio\` |
+| \`media-nginx\` | 9100 | media local pública, siempre activo |
 
-### Servicios opcionales
+### Servicios opcionales y media
 
-Redis y MinIO están desactivados por defecto en ambos stacks. Para activarlos, editar \`COMPOSE_PROFILES\` en \`.infra/env/stack.dev.env\` o \`.infra/env/stack.test.env\` antes de levantar:
+Redis está desactivado por defecto en ambos stacks. Para activarlo, editar \`COMPOSE_PROFILES\` en \`.infra/env/stack.dev.env\` o \`.infra/env/stack.test.env\` antes de levantar:
 
 \`\`\`bash
-# Solo Redis
 COMPOSE_PROFILES=redis
-
-# Solo MinIO
-COMPOSE_PROFILES=minio
-
-# Ambos
-COMPOSE_PROFILES=redis,minio
 \`\`\`
+
+\`media-nginx\` está activo siempre y sirve \`/uploads\` desde:
+
+| Entorno | URL | Directorio host |
+|---|---|---|
+| \`dev\` | \`http://localhost:9000/uploads\` | \`.dev/storage/dev/uploads\` |
+| \`test\` | \`http://localhost:9100/uploads\` | \`.dev/storage/test/uploads\` |
 
 ### Funcionamiento simultáneo
 
@@ -200,6 +201,7 @@ npm run dev:down
 npm run test:up
 npm run test:logs
 npm run test:shell <servicio>
+npm run test:open
 npm run test:expose
 npm run test:close
 npm run test:down
@@ -208,7 +210,7 @@ npm run infra:status
 npm run infra:ports
 \`\`\`
 
-\`<servicio>\` acepta cualquier nombre definido en los compose files, por ejemplo: \`backend-api\`, \`frontend-public\`, \`frontend-admin\`, \`postgres\`, \`redis\`, \`minio\`.
+\`<servicio>\` acepta cualquier nombre definido en los compose files, por ejemplo: \`backend-api\`, \`frontend-public\`, \`frontend-admin\`, \`postgres\`, \`redis\`, \`media-nginx\`.
 
 Los comandos \`logs\` imprimen primero el resumen del stack y luego siguen el stream en tiempo real.  
 La salida coloreada usa una convención fija por servicio para hacer más legible la operación diaria.
@@ -220,9 +222,12 @@ La salida coloreada usa una convención fija por servicio para hacer más legibl
 - Los \`.env.example\` por servicio son la fuente de verdad versionada de claves
 - \`npm run env:sync\` crea y actualiza \`.env.development\` y \`.env.test\` sin pisar valores existentes
 - \`npm run env:sync\` también crea \`.infra/env/stack.dev.env\`, \`.infra/env/stack.test.env\` y \`.infra/env/test-expose.env\`
+- \`npm run test:up\` usa URLs locales; \`npm run test:open\` genera un env temporal con URLs públicas y no deja esos valores pegados al modo local
 - \`catalog.json\` sólo se reescribe cuando cambia el contrato de claves de algún servicio para evitar ruido en git
 - los jobs o scripts de actualización de \`test\` deben usar \`.infra/scripts/ci/update-test-service.ps1\` para retries, corte temprano y cleanup
-- cambios de credenciales en Postgres, Redis o MinIO deben resolverse en el servicio real que las hospeda y documentarse en \`${config.hosting_type}/service-ops.md\`
+- cambios de credenciales en Postgres o Redis deben resolverse en el servicio real que las hospeda y documentarse en \`${config.hosting_type}/service-ops.md\`
+- los frontends son stateless: consumen media por URL pública y no montan volúmenes
+- el backend escribe uploads en \`MEDIA_STORAGE_DIR\`; \`media-nginx\` monta el mismo directorio en sólo lectura
 `
 }
 
@@ -283,6 +288,7 @@ El entorno \`test\` no vive en el VPS por defecto: corre en Docker local y sólo
 ## Componentes remotos
 
 - una app productiva por servicio
+- una app o servicio productivo para \`media-nginx\` si el proyecto usa uploads nativos
 - proxy/TLS para producción
 - proxy o estrategia de expose para \`test\`
 - SSH para mantenimiento, migraciones y limpieza Docker
@@ -387,7 +393,7 @@ function renderVpsChecklist(config: ProjectConfig): string {
 - [ ] **Completar las variables del panel o CI/CD**
 - [ ] **Documentar dónde vive cada secreto**
 - [ ] **Verificar \`npm run env:check\`**
-- [ ] **Revisar \`${config.hosting_type}/service-ops.md\`** antes de tocar credenciales de Postgres, Redis o MinIO
+- [ ] **Revisar \`${config.hosting_type}/service-ops.md\`** antes de tocar credenciales de Postgres, Redis o media local
 
 ## 7. Promoción a producción
 
@@ -477,7 +483,7 @@ Además crea, si faltan:
 - \`npm run env:sync\` puede agregar claves faltantes, pero nunca debe pisar valores existentes
 - producción no se rellena con placeholders ni con defaults de \`test\`
 - si aparece una variable nueva en código, debe reflejarse en el \`.env.example\` correspondiente
-- las credenciales de Postgres, Redis o MinIO deben administrarse en el runtime real y documentarse en \`${config.hosting_type}/service-ops.md\`
+- las credenciales de Postgres o Redis deben administrarse en el runtime real y documentarse en \`${config.hosting_type}/service-ops.md\`
 
 ## Variables por app
 
@@ -485,19 +491,21 @@ Además crea, si faltan:
 
 - \`NEXT_PUBLIC_APP_NAME\`
 - \`NEXT_PUBLIC_APP_URL\`
-- \`NEXT_PUBLIC_API_URL\`
+- \`NEXT_PUBLIC_EXTERNAL_API_URL\`
+- \`INTERNAL_API_URL\`
 - \`NEXT_PUBLIC_COOKIE_DOMAIN\`
 - \`NEXTAUTH_URL\`
 - \`NEXTAUTH_SECRET\`
-- \`MINIO_PUBLIC_URL\`
+- \`MEDIA_PUBLIC_URL\`
 - \`PLAYWRIGHT_BASE_URL\`
 
 ### Frontend admin
 
-- \`NEXT_PUBLIC_API_URL\`
+- \`NEXT_PUBLIC_EXTERNAL_API_URL\`
+- \`INTERNAL_API_URL\`
 - \`NEXT_PUBLIC_APP_URL\`
 - \`NEXT_PUBLIC_COOKIE_DOMAIN\`
-- \`MINIO_PUBLIC_URL\`
+- \`MEDIA_PUBLIC_URL\`
 - \`NEXT_PUBLIC_REALTIME_ADAPTER\`
 - \`NEXT_PUBLIC_REALTIME_URL\`
 - \`NEXT_PUBLIC_POLLING_INTERVAL\`
@@ -514,11 +522,10 @@ Además crea, si faltan:
 - \`QUEUE_ADAPTER\`
 - \`CACHE_ADAPTER\`
 - \`REDIS_URL\`
-- \`MINIO_ENDPOINT\`
-- \`MINIO_ROOT_USER\`
-- \`MINIO_ROOT_PASSWORD\`
-- \`MINIO_BUCKET\`
-- \`MINIO_PUBLIC_URL\`
+- \`MEDIA_STORAGE_DIR\`
+- \`MEDIA_PUBLIC_URL\`
+- \`MEDIA_MAX_IMAGE_WIDTH\`
+- \`MEDIA_IMAGE_QUALITY\`
 - \`ALLOWED_ORIGINS\`
 
 ## Generar secrets seguros
@@ -540,6 +547,7 @@ El engine ya deja preparada la convención para:
 - workflows en \`.github/workflows/\`
 - scripts auxiliares en \`.infra/scripts/ci/\`
 - stacks locales \`dev/test\` en \`.infra/docker/\`
+- promoción manual por servicio hacia producción
 
 No todos los proyectos arrancan con workflows activos.  
 Si el proyecto sigue con servicios \`neutral\`, la parte local/documental existe pero la automatización debe completarse junto al stack real.
@@ -565,8 +573,9 @@ Si el proyecto sigue con servicios \`neutral\`, la parte local/documental existe
 1. Seleccionar un commit exacto.
 2. Construir y publicar sólo la imagen del servicio afectado.
 3. Desplegar sólo la app afectada.
-4. Si el servicio es \`backend-api\`, ejecutar migraciones.
-5. Limpiar Docker post-deploy cuando aplique.
+4. Esperar el estado real del deployment remoto antes de marcar éxito.
+5. Si el servicio es \`backend-api\`, ejecutar migraciones.
+6. Limpiar Docker post-deploy cuando aplique.
 
 ## Política de cache Docker
 
@@ -590,7 +599,7 @@ function renderVpsServiceOps(config: ProjectConfig): string {
 
 ## Alcance
 
-Runbook mínimo para operaciones sensibles sobre servicios compartidos como Postgres, Redis o MinIO.
+Runbook mínimo para operaciones sensibles sobre servicios compartidos como Postgres, Redis o media local.
 
 ## Regla principal
 
@@ -615,7 +624,7 @@ Se cambian en el runtime real que hospeda ese servicio y luego se documenta:
 
 - Postgres: password del usuario de aplicación, base de datos, backups
 - Redis: password, política de persistencia, puertos expuestos
-- MinIO/S3: root user, root password, bucket/policies, URL pública
+- Media local: directorio host, permisos de escritura del backend, montaje sólo lectura de \`media-nginx\`, URL pública y política de cache
 `
 }
 

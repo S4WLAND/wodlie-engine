@@ -1,24 +1,49 @@
-const minioHostname = process.env.MINIO_PUBLIC_URL?.replace(/^https?:\/\//, '') || null
+function getMediaRemotePattern() {
+  if (!process.env.MEDIA_PUBLIC_URL) return null
+
+  try {
+    const url = new URL(process.env.MEDIA_PUBLIC_URL)
+    return {
+      protocol: url.protocol.replace(':', ''),
+      hostname: url.hostname,
+      port: url.port,
+      pathname: '/**',
+    }
+  } catch {
+    return null
+  }
+}
+
+const mediaRemotePattern = getMediaRemotePattern()
+const shouldUseWebpackPolling = process.env.WATCHPACK_POLLING === 'true'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  experimental: {
-    typedRoutes: true,
-  },
+  allowedDevOrigins: process.env.NEXT_ALLOWED_DEV_ORIGINS?.split(',').map((o) => o.trim()).filter(Boolean) ?? [],
+  typedRoutes: true,
   compiler: {
     // Elimina console.log en producción; conserva console.error y console.warn
     removeConsole: { exclude: ['error', 'warn'] },
   },
+  turbopack: {},
+  ...(shouldUseWebpackPolling
+    ? {
+        // Polling para HMR en Docker + Windows host.
+        webpack: (config, { dev }) => {
+          if (dev) {
+            config.watchOptions = {
+              poll: 500,
+              aggregateTimeout: 300,
+            }
+          }
+          return config
+        },
+      }
+    : {}),
   images: {
-    remotePatterns: minioHostname
-      ? [
-          {
-            protocol: 'https',
-            hostname: minioHostname,
-          },
-        ]
-      : [],
+    formats: ['image/webp'],
+    remotePatterns: mediaRemotePattern ? [mediaRemotePattern] : [],
   },
 }
 

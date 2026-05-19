@@ -1,0 +1,393 @@
+name: Promote Service To Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service to promote
+        required: true
+        type: choice
+        options:
+          - backend-api
+          - frontend-public
+          - frontend-admin
+      commit_sha:
+        description: Commit SHA already reviewed in local test
+        required: true
+        type: string
+      confirm_phrase:
+        description: Type PROMOTE to confirm
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  prepare:
+    name: Validate promotion request
+    runs-on: ubuntu-latest
+    outputs:
+      commit_sha: ${{ steps.meta.outputs.commit_sha }}
+      owner: ${{ steps.meta.outputs.owner }}
+      service_name: ${{ steps.meta.outputs.service_name }}
+      image_name: ${{ steps.meta.outputs.image_name }}
+      context: ${{ steps.meta.outputs.context }}
+      dockerfile: ${{ steps.meta.outputs.dockerfile }}
+      build_args: ${{ steps.meta.outputs.build_args }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Sync env templates
+        run: npm run env:sync
+
+      - name: Validate env catalog
+        run: node ./.infra/scripts/env/index.mjs env check --strict
+
+      - name: Resolve metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event.inputs.confirm_phrase }}" != "PROMOTE" ]; then
+            echo "Invalid confirmation phrase"
+            exit 1
+          fi
+
+          git fetch origin main
+
+          commit_sha="$(git rev-parse "${{ github.event.inputs.commit_sha }}")"
+          git merge-base --is-ancestor "${commit_sha}" origin/main
+
+          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          service_name="${{ github.event.inputs.service }}"
+
+          case "${service_name}" in
+            backend-api)
+              image_name="{{PROJECT_NAME}}-backend-api"
+              context=".dev/src/backend-api"
+              dockerfile=".dev/src/backend-api/Dockerfile"
+              build_args=$'BACKEND_RUNTIME_NODE_ENV=production\nBACKEND_RUNTIME_PORT=3000'
+              ;;
+            frontend-public)
+              image_name="{{PROJECT_NAME}}-frontend-public"
+              context=".dev/src/frontend-public"
+              dockerfile=".dev/src/frontend-public/Dockerfile"
+              build_args=$'NEXT_PUBLIC_EXTERNAL_API_URL=${{ vars.PROD_BACKEND_PUBLIC_URL }}\nINTERNAL_API_URL=http://backend-api:3000\nNEXT_PUBLIC_COOKIE_DOMAIN=${{ vars.PROD_COOKIE_DOMAIN }}\nNEXTAUTH_URL=${{ vars.PROD_FRONTEND_PUBLIC_URL }}\nNEXT_PUBLIC_APP_NAME={{PROJECT_NAME}}\nNEXT_PUBLIC_APP_URL=${{ vars.PROD_FRONTEND_PUBLIC_URL }}\nNEXT_PUBLIC_ADMIN_URL=${{ vars.PROD_FRONTEND_ADMIN_URL }}\nMEDIA_PUBLIC_URL=${{ vars.PROD_MEDIA_PUBLIC_URL }}\nPLAYWRIGHT_BASE_URL=${{ vars.PROD_FRONTEND_PUBLIC_URL }}\nAPP_RUNTIME_PORT=3001\nAPP_RUNTIME_HOST=0.0.0.0'
+              ;;
+            frontend-admin)
+              image_name="{{PROJECT_NAME}}-frontend-admin"
+              context=".dev/src/frontend-admin"
+              dockerfile=".dev/src/frontend-admin/Dockerfile"
+              build_args=$'NEXT_PUBLIC_EXTERNAL_API_URL=${{ vars.PROD_BACKEND_PUBLIC_URL }}\nINTERNAL_API_URL=http://backend-api:3000\nNEXT_PUBLIC_APP_URL=${{ vars.PROD_FRONTEND_PUBLIC_URL }}\nNEXT_PUBLIC_COOKIE_DOMAIN=${{ vars.PROD_COOKIE_DOMAIN }}\nMEDIA_PUBLIC_URL=${{ vars.PROD_MEDIA_PUBLIC_URL }}\nNEXT_PUBLIC_REALTIME_ADAPTER=${{ vars.PROD_REALTIME_ADAPTER }}\nNEXT_PUBLIC_POLLING_INTERVAL=${{ vars.PROD_POLLING_INTERVAL }}\nPLAYWRIGHT_BASE_URL=${{ vars.PROD_FRONTEND_ADMIN_URL }}\nAPP_RUNTIME_PORT=3002\nAPP_RUNTIME_HOST=0.0.0.0'
+              ;;
+            *)
+              echo "Unsupported service: ${service_name}"
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "commit_sha=${commit_sha}"
+            echo "owner=${owner}"
+            echo "service_name=${service_name}"
+            echo "image_name=${image_name}"
+            echo "context=${context}"
+            echo "dockerfile=${dockerfile}"
+            echo 'build_args<<EOF'
+            printf '%s\n' "${build_args}"
+            echo 'EOF'
+          } >> "${GITHUB_OUTPUT}"
+
+  build-and-push:
+    name: Build and push production image
+    needs: prepare
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
+          fetch-depth: 0
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push selected service
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ needs.prepare.outputs.context }}
+          file: ${{ needs.prepare.outputs.dockerfile }}
+          push: true
+          build-args: ${{ needs.prepare.outputs.build_args }}
+          tags: |
+            ghcr.io/${{ needs.prepare.outputs.owner }}/${{ needs.prepare.outputs.image_name }}:sha-${{ needs.prepare.outputs.commit_sha }}
+            ghcr.io/${{ needs.prepare.outputs.owner }}/${{ needs.prepare.outputs.image_name }}:prod-latest
+
+  deploy:
+    name: Deploy selected service to Dokploy
+    needs:
+      - prepare
+      - build-and-push
+    runs-on: ubuntu-latest
+    environment: 
+      name: production
+    env:
+      DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+      DOKPLOY_BASE_URL: ${{ secrets.DOKPLOY_BASE_URL }}
+      DOKPLOY_BACKEND_API_PROD_APP_ID: ${{ secrets.DOKPLOY_BACKEND_API_PROD_APP_ID }}
+      DOKPLOY_FRONTEND_PUBLIC_PROD_APP_ID: ${{ secrets.DOKPLOY_FRONTEND_PUBLIC_PROD_APP_ID }}
+      DOKPLOY_FRONTEND_ADMIN_PROD_APP_ID: ${{ secrets.DOKPLOY_FRONTEND_ADMIN_PROD_APP_ID }}
+      VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+      VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+      VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
+      VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+      DOKPLOY_CLEANUP_DELAY_SECONDS: ${{ secrets.DOKPLOY_CLEANUP_DELAY_SECONDS }}
+      DOKPLOY_DOCKER_PRUNE_UNTIL: ${{ secrets.DOKPLOY_DOCKER_PRUNE_UNTIL }}
+      PROD_BACKEND_MIGRATION_COMMAND: ${{ secrets.PROD_BACKEND_MIGRATION_COMMAND }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Resolve Dokploy application id
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "${{ needs.prepare.outputs.service_name }}" in
+            backend-api)
+              app_id="${DOKPLOY_BACKEND_API_PROD_APP_ID}"
+              ;;
+            frontend-public)
+              app_id="${DOKPLOY_FRONTEND_PUBLIC_PROD_APP_ID}"
+              ;;
+            frontend-admin)
+              app_id="${DOKPLOY_FRONTEND_ADMIN_PROD_APP_ID}"
+              ;;
+            *)
+              echo "Unsupported service"
+              exit 1
+              ;;
+          esac
+
+          if [ -z "${app_id}" ]; then
+            echo "Missing Dokploy application id for service ${{ needs.prepare.outputs.service_name }}"
+            exit 1
+          fi
+
+          echo "app_id=${app_id}" >> "${GITHUB_OUTPUT}"
+
+      - name: Capture latest Dokploy deployment baseline
+        id: baseline
+        env:
+          DOKPLOY_APPLICATION_ID: ${{ steps.target.outputs.app_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          dokploy_get_deployments() {
+            curl --show-error --silent \
+              --retry 5 \
+              --retry-delay 10 \
+              --retry-all-errors \
+              --connect-timeout 20 \
+              --max-time 60 \
+              -G "${DOKPLOY_BASE_URL}/api/deployment.all" \
+              -H "accept: application/json" \
+              -H "x-api-key: ${DOKPLOY_API_KEY}" \
+              --data-urlencode "applicationId=${DOKPLOY_APPLICATION_ID}"
+          }
+
+          response="$(dokploy_get_deployments)"
+
+          latest_id="$(printf '%s' "${response}" | jq -r '
+            def deployments:
+              if type == "array" then .
+              elif (has("data") and (.data | type) == "array") then .data
+              elif (has("deployments") and (.deployments | type) == "array") then .deployments
+              else []
+              end;
+
+            deployments
+            | sort_by(.createdAt // .updatedAt // .startedAt // "")
+            | last?
+            | (.deploymentId // .id // .deployment_id // "")
+          ')"
+
+          echo "latest_id=${latest_id}" >> "${GITHUB_OUTPUT}"
+
+      - name: Trigger selected service deploy
+        env:
+          DOKPLOY_APPLICATION_ID: ${{ steps.target.outputs.app_id }}
+          PREVIOUS_DEPLOYMENT_ID: ${{ steps.baseline.outputs.latest_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          dokploy_get_deployments() {
+            curl --show-error --silent \
+              --retry 5 \
+              --retry-delay 10 \
+              --retry-all-errors \
+              --connect-timeout 20 \
+              --max-time 60 \
+              -G "${DOKPLOY_BASE_URL}/api/deployment.all" \
+              -H "accept: application/json" \
+              -H "x-api-key: ${DOKPLOY_API_KEY}" \
+              --data-urlencode "applicationId=${DOKPLOY_APPLICATION_ID}"
+          }
+
+          get_new_deployment_id() {
+            dokploy_get_deployments | jq -r --arg previous "${PREVIOUS_DEPLOYMENT_ID}" '
+              def deployments:
+                if type == "array" then .
+                elif (has("data") and (.data | type) == "array") then .data
+                elif (has("deployments") and (.deployments | type) == "array") then .deployments
+                else []
+                end;
+
+              deployments
+              | sort_by(.createdAt // .updatedAt // .startedAt // "")
+              | map(select((.deploymentId // .id // .deployment_id // "") != $previous))
+              | last?
+              | (.deploymentId // .id // .deployment_id // "")
+            '
+          }
+
+          trigger_deploy() {
+            curl --show-error --silent \
+              --connect-timeout 20 \
+              --max-time 60 \
+              -X POST "${DOKPLOY_BASE_URL}/api/application.deploy" \
+              -H "accept: application/json" \
+              -H "content-type: application/json" \
+              -H "x-api-key: ${DOKPLOY_API_KEY}" \
+              -d "{\"applicationId\":\"${DOKPLOY_APPLICATION_ID}\"}"
+          }
+
+          max_attempts=3
+
+          for attempt in $(seq 1 "${max_attempts}"); do
+            if trigger_deploy; then
+              echo "Dokploy deploy trigger accepted"
+              exit 0
+            fi
+
+            echo "Dokploy deploy trigger failed on attempt ${attempt}/${max_attempts}. Checking whether a deployment was already created..."
+            sleep 5
+
+            deployment_id="$(get_new_deployment_id)"
+            if [ -n "${deployment_id}" ]; then
+              echo "Dokploy deployment ${deployment_id} was created despite the trigger error. Continuing without retrying POST."
+              exit 0
+            fi
+
+            if [ "${attempt}" -lt "${max_attempts}" ]; then
+              echo "No new deployment found. Retrying deploy trigger..."
+              sleep 10
+            fi
+          done
+
+          echo "Dokploy deploy trigger failed and no new deployment was created."
+          exit 1
+
+      - name: Wait for Dokploy deployment result
+        env:
+          DOKPLOY_APPLICATION_ID: ${{ steps.target.outputs.app_id }}
+          PREVIOUS_DEPLOYMENT_ID: ${{ steps.baseline.outputs.latest_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          timeout_seconds=420
+          interval_seconds=10
+          deadline=$(( $(date +%s) + timeout_seconds ))
+
+          dokploy_get_deployments() {
+            curl --show-error --silent \
+              --retry 5 \
+              --retry-delay 10 \
+              --retry-all-errors \
+              --connect-timeout 20 \
+              --max-time 60 \
+              -G "${DOKPLOY_BASE_URL}/api/deployment.all" \
+              -H "accept: application/json" \
+              -H "x-api-key: ${DOKPLOY_API_KEY}" \
+              --data-urlencode "applicationId=${DOKPLOY_APPLICATION_ID}"
+          }
+
+          while [ "$(date +%s)" -lt "${deadline}" ]; do
+            response="$(dokploy_get_deployments)"
+
+            deployment="$(printf '%s' "${response}" | jq -c --arg previous "${PREVIOUS_DEPLOYMENT_ID}" '
+              def deployments:
+                if type == "array" then .
+                elif (has("data") and (.data | type) == "array") then .data
+                elif (has("deployments") and (.deployments | type) == "array") then .deployments
+                else []
+                end;
+
+              deployments
+              | sort_by(.createdAt // .updatedAt // .startedAt // "")
+              | map(select((.deploymentId // .id // .deployment_id // "") != $previous))
+              | last?
+            ')"
+
+            if [ "${deployment}" = "null" ] || [ -z "${deployment}" ]; then
+              echo "Waiting for Dokploy to register the new deployment..."
+              sleep "${interval_seconds}"
+              continue
+            fi
+
+            deployment_id="$(printf '%s' "${deployment}" | jq -r '.deploymentId // .id // .deployment_id // "unknown"')"
+            status="$(printf '%s' "${deployment}" | jq -r '(.status // .state // .deploymentStatus // .phase // "unknown") | ascii_downcase')"
+            message="$(printf '%s' "${deployment}" | jq -r '.title // .description // .message // ""')"
+
+            echo "Dokploy deployment ${deployment_id} status: ${status}${message:+ - ${message}}"
+
+            case "${status}" in
+              success|successful|done|completed|complete|finished|ready)
+                exit 0
+                ;;
+              error|failed|failure|cancelled|canceled|dead|exited|unhealthy)
+                echo "Dokploy deployment failed:"
+                printf '%s\n' "${deployment}" | jq .
+                exit 1
+                ;;
+              pending|queued|running|in_progress|in-progress|deploying|building|restarting|starting|created)
+                sleep "${interval_seconds}"
+                ;;
+              *)
+                echo "Unknown Dokploy deployment status '${status}'. Waiting for a terminal state..."
+                sleep "${interval_seconds}"
+                ;;
+            esac
+          done
+
+          echo "Timed out waiting for Dokploy deployment to finish."
+          exit 1
+
+      - name: Run production backend migrations
+        if: ${{ needs.prepare.outputs.service_name == 'backend-api' }}
+        run: bash .infra/scripts/ci/run-prod-backend-migrations.sh
+
+      - name: Cleanup Dokploy Docker artifacts
+        run: bash .infra/scripts/ci/cleanup-dokploy-docker.sh

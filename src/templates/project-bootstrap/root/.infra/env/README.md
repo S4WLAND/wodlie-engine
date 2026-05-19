@@ -37,5 +37,6 @@ Los `.env.example` de cada app siguen siendo la fuente de verdad de claves técn
   - `.dev/src/frontend-public/.env.test`
   - `.dev/src/frontend-admin/.env.development`
   - `.dev/src/frontend-admin/.env.test`
-- `test-expose.env` no configura la app ni Docker: sólo configura cómo exponer o cerrar el stack `test` desde el VPS
-- `publish.env` queda sólo como compatibilidad transitoria interna; la fuente actual y documentada es `test-expose.env`
+- `test-expose.env` no reemplaza `stack.test.env`: define las URLs públicas, SSH, túnel reverso y archivo Traefik usados por `test:open`
+- `test:up` usa los valores locales de `stack.test.env`; `test:open` genera un env temporal público desde `test-expose.env` y no modifica el modo local
+- `test:open` requiere la configuración remota completa; `test:close` y `test:down` toleran que no haya expose activo y continúan sin bloquear la operación local

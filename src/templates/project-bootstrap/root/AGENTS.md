@@ -39,7 +39,9 @@ npm run env:sync
 npm run dev:up
 npm run dev:down
 npm run test:up
+npm run test:open
 npm run test:expose
+npm run test:close
 ```
 
 Si algún servicio sigue en modo `neutral`, `npm run dev:up` y `npm run test:up` sólo funcionarán después de completar o adaptar el stack real.
@@ -59,6 +61,7 @@ Si algún servicio sigue en modo `neutral`, `npm run dev:up` y `npm run test:up`
 - `.business/requirements/epics/...` (solo via comandos del engine)
 - `.infra/vps/*.md` (regenerables con `infra:sync`)
 - Todo el código en `.dev/`
+- `.github/workflows/*.yml` (viven en raíz porque GitHub Actions no lee workflows dentro de `.infra/`)
 
 ## Secuencia recomendada
 
@@ -82,6 +85,7 @@ Si algún servicio sigue en modo `neutral`, `npm run dev:up` y `npm run test:up`
 
 - Antes de borrar carpetas del proyecto
 - Antes de regenerar `.infra/` si hubo edición manual importante
+- Antes de publicar `test` con `npm run test:open` o promover producción si faltan secrets/vars verificadas
 - Antes de cambiar estados o historias sin contexto claro
 - Antes de operaciones destructivas o de entrega
 
