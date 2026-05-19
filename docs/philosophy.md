@@ -9,6 +9,8 @@ Este documento describe la dirección buscada del proyecto y la separa del estad
 - La documentación narrativa ayuda a operar.
 - El modelo canónico y los eventos gobiernan sincronización, métricas y trazabilidad.
 - La arquitectura DEV debe favorecer modularidad, desacoplamiento y portabilidad controlada.
+- La infraestructura estándar debe ser operable por servicio: backend, public y admin se validan, actualizan y promueven de forma granular.
+- La media del proyecto debe tener una ruta explícita: backend escribe, un servidor liviano sirve lectura pública y los frontends permanecen stateless.
 
 ## Regla central
 
@@ -40,7 +42,8 @@ No todo debe escribirse libremente.
 
 ### Parcial
 
-- `init` genera un baseline usable, pero no compone por perfil
+- `init` genera un baseline usable por servicio, con presets runnable para `fastify + nextjs + nextjs`
+- `.infra/` ya materializa un estándar local `dev/test` con media, env sync, expose temporal y workflows base
 - `deploy`, `module:add`, `module:remove` y `deliver` todavía son flujos guiados
 - `env:sync`, `export` y `purge` funcionan, pero con alcance acotado
 - la IA puede seguir reglas por `AGENTS.md`, pero no tiene MCP todavía
@@ -50,7 +53,7 @@ No todo debe escribirse libremente.
 - no hay reconciliación profunda de drift
 - no hay composición variable del framework según tipo, tamaño o capabilities
 - no hay portabilidad real de módulos con análisis cerrado de dependencias
-- no hay automatización completa de infra, CI/CD, secretos y deploy
+- no hay automatización completa de secretos, apps remotas y deploy productivo sin configuración por proyecto
 - no hay surface agentica formal sobre MCP
 - no hay eventos nacidos automáticamente desde commits, pipelines o resultados de prueba
 

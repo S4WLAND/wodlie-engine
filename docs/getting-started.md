@@ -77,6 +77,9 @@ Esto crea o completa:
 - `.infra/env/stack.dev.env`
 - `.infra/env/stack.test.env`
 - `.infra/env/test-expose.env`
+- `.infra/env/catalog.json`
+
+También deja preparados `.dev/storage/dev/uploads` y `.dev/storage/test/uploads` para media local servida por `media-nginx`.
 
 ## 5. Levantar el stack local
 
@@ -86,6 +89,13 @@ Si elegiste la combinación runnable:
 npm run dev:up
 # o
 npm run test:up
+```
+
+Para publicar temporalmente el stack `test` con URLs públicas configuradas en `.infra/env/test-expose.env`:
+
+```bash
+npm run test:open
+npm run test:close
 ```
 
 Si dejaste algún servicio en `neutral`, el proyecto queda documentado pero no runnable todavía. En ese caso:
@@ -107,6 +117,7 @@ wodlie-engine report:draft
 
 - no existe MCP
 - `deploy` sigue siendo guiado
+- los workflows de `.github/workflows/` requieren secrets/vars reales antes de operar
 - `deliver`, `reimport` y `upgrade` no cierran un flujo end-to-end todavía
 
 ## Siguiente lectura

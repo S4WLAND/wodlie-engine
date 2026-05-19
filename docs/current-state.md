@@ -21,8 +21,11 @@
 - `.infra/docker/compose.base.yml`
 - overlays `dev` y `test`
 - `env:sync` delegado a `.infra/scripts/env/index.mjs`
-- Redis y MinIO opcionales vía `COMPOSE_PROFILES`
+- Redis opcional vía `COMPOSE_PROFILES=redis`
+- `media-nginx` activo por defecto para uploads locales
+- `test:open` / `test:expose` con URLs públicas temporales
 - helper robusto `.infra/scripts/ci/update-test-service.ps1`
+- workflows base para test por servicio y promoción manual granular a producción
 
 ### Negocio y reportes
 
@@ -42,6 +45,6 @@
 - MCP
 - comando dedicado para cambiar presets después de `init`
 - soporte runnable para stacks no Node dentro del bootstrap
-- CI/CD completa ya activada en todos los proyectos generados
+- CI/CD requiere completar secrets/vars y apps remotas por proyecto antes de quedar operativa
 - reimport/upgrade end-to-end
 - reconciliación estructural profunda entre plantilla, proyecto y drift manual

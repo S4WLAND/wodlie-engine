@@ -5,8 +5,10 @@
 - Docker local `dev` y `test` en `.infra/`
 - `env:sync`, `env:check`, `infra:status` e `infra:ports`
 - `dev:shell` y `test:shell` por servicio para diagnóstico operativo
-- expose manual de `test` vía `.infra/env/test-expose.env`
+- `test:open` / `test:expose` de `test` vía `.infra/env/test-expose.env`, usando env temporal para no contaminar el modo local
+- `media-nginx` local para servir uploads en `dev/test`
 - helper de actualización robusta para `test` en `.infra/scripts/ci/update-test-service.ps1`
+- workflows base de test por servicio y promoción manual granular hacia producción
 
 ## Qué sigue siendo guiado
 
@@ -43,8 +45,11 @@ La convención es:
 - workflows en la raíz
 - scripts operativos en `.infra/scripts/ci/`
 - documentación viva en `.infra/`
+- cada workflow promueve o valida un servicio concreto: `backend-api`, `frontend-public` o `frontend-admin`
+- la promoción a producción debe esperar el estado real del deployment remoto antes de marcar éxito
 
 ## Regla honesta del bootstrap
 
 - si los tres servicios están en presets runnable, el stack local queda preconfigurado
 - si algún servicio está en `neutral`, el proyecto trae el contrato y la documentación, pero no un deploy/stack operativo para ese servicio
+- los workflows quedan como estándar reutilizable, pero requieren completar secrets, vars, apps remotas y permisos por proyecto

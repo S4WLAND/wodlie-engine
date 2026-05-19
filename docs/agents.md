@@ -48,3 +48,5 @@ la IA no debe escribir esos artefactos a mano; debe usar comandos del engine.
 - nunca asumir; verificar con código o documentación
 - nunca editar a mano JSON generados automáticamente
 - siempre actualizar docs afectadas si cambia el comportamiento real
+- si el cambio toca Docker, workflows, env vars, media local o deploy, actualizar `.infra/` y revisar `.github/workflows/`
+- separar siempre backend `admin`, `public` y `pages` cuando se diseñan contratos HTTP nuevos

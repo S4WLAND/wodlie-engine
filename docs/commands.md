@@ -87,14 +87,19 @@ Estado: `implemented`
 - `npm run test:down`
 - `npm run test:logs`
 - `npm run test:shell <servicio>`
+- `npm run test:open`
 - `npm run test:expose`
 - `npm run test:close`
+- `npm run test:deploy-ghcr`
 - `npm run infra:status`
 - `npm run infra:ports`
 
-Redis y MinIO son opcionales vía `COMPOSE_PROFILES`.
+Redis es opcional vía `COMPOSE_PROFILES=redis`.
+`media-nginx` queda activo por defecto para servir `/uploads` desde `.dev/storage/dev/uploads` o `.dev/storage/test/uploads`.
 `logs` imprime primero el resumen del stack y `shell` abre una sesión interactiva dentro del contenedor indicado.
 `<servicio>` puede ser cualquier nombre definido en los compose files del proyecto.
+
+`test:open` y `test:expose` generan un env temporal con URLs públicas desde `.infra/env/test-expose.env`; `test:up` conserva siempre las URLs locales.
 
 ## Infraestructura
 
